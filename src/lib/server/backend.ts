@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { fetch as undiciFetch, type RequestInit as UndiciRequestInit } from 'undici';
 import { backendDispatcher } from './dispatcher';
 
 export function buildBackendUrl(base: string, path: string, query: string): string {
@@ -29,13 +30,18 @@ export async function callBackend(path: string, opts: BackendCallOptions = {}): 
 		headers['Content-Type'] = 'application/json';
 		body = JSON.stringify(opts.json);
 	}
-	return fetch(url, {
+	// Use undici's OWN fetch (matched to its ProxyAgent). Passing a standalone
+	// undici ProxyAgent as a `dispatcher` to Node's BUILT-IN fetch fails with
+	// "invalid onRequestStart method" (the internal handler interfaces differ
+	// between the bundled and the installed undici). Same-package fetch avoids it.
+	const init: UndiciRequestInit = {
 		method: opts.method ?? 'GET',
 		headers,
-		body,
-		// @ts-expect-error undici-only option on Node's global fetch
+		body: body as UndiciRequestInit['body'],
 		dispatcher: backendDispatcher
-	});
+	};
+	const res = await undiciFetch(url, init);
+	return res as unknown as Response;
 }
 
 /** Convenience: call backend, parse the {data,error} envelope, throw on !ok. */
