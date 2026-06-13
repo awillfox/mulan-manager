@@ -20,7 +20,7 @@
 		errored = false;
 		try {
 			const [sRes, tRes] = await Promise.all([
-				fetch('/api/dashboard/'),
+				fetch('/api/dashboard'),
 				fetch('/api/dashboard/top-menus')
 			]);
 			if (!sRes.ok || !tRes.ok) throw new Error('dashboard request failed');
