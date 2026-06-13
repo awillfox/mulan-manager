@@ -5,7 +5,9 @@
 
 	const tabs = [
 		{ href: '/', label: 'Dashboard', icon: '📊' },
-		{ href: '/discounts', label: 'Discounts', icon: '🏷️' }
+		{ href: '/menu', label: 'Menu', icon: '☕' },
+		{ href: '/members', label: 'Members', icon: '👤' },
+		{ href: '/more', label: 'More', icon: '⋯' }
 	];
 </script>
 
