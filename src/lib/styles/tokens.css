@@ -1,0 +1,45 @@
+/* iOS semantic color tokens (HIG system colors), light default + dark override.
+   Components reference these via var(--ios-*). 8pt spacing is enforced via
+   Tailwind's default scale (multiples of 4); use even steps (2,4,6,8...). */
+:root {
+	--ios-blue: #007aff;
+	--ios-green: #34c759;
+	--ios-red: #ff3b30;
+	--ios-red-soft: rgba(255, 59, 48, 0.12);
+	--ios-bg: #ffffff;
+	--ios-grouped-bg: #f2f2f7;
+	--ios-card: #ffffff;
+	--ios-separator: rgba(60, 60, 67, 0.18);
+	--ios-label: #000000;
+	--ios-label-secondary: rgba(60, 60, 67, 0.6);
+	--ios-label-tertiary: rgba(60, 60, 67, 0.3);
+	--ios-fill: rgba(120, 120, 128, 0.12);
+	--ios-nav-blur: rgba(249, 249, 249, 0.8);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not(.theme-light) {
+		--ios-bg: #000000;
+		--ios-grouped-bg: #000000;
+		--ios-card: #1c1c1e;
+		--ios-separator: rgba(84, 84, 88, 0.65);
+		--ios-label: #ffffff;
+		--ios-label-secondary: rgba(235, 235, 245, 0.6);
+		--ios-label-tertiary: rgba(235, 235, 245, 0.3);
+		--ios-fill: rgba(120, 120, 128, 0.24);
+		--ios-nav-blur: rgba(30, 30, 30, 0.8);
+	}
+}
+
+:global(html) {
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, sans-serif;
+	background: var(--ios-grouped-bg);
+	color: var(--ios-label);
+	-webkit-font-smoothing: antialiased;
+}
+
+/* iOS spring-ish easing for micro-interactions (200–300ms). */
+:root {
+	--ios-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
