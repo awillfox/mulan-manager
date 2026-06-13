@@ -1,42 +1,82 @@
-# sv
+# mulan-manager
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Phone-first, iOS-style **SvelteKit** manager frontend for the [`mulan`](../mulan) Go POS. Deployed on **render.com**; talks to the private Go backend over **Tailscale**. Replaces the old Go `html/template` `/manager/*` pages.
 
-## Creating a project
+> Conventions, route-scoping rules, and the gotchas live in [`CLAUDE.md`](./CLAUDE.md). This README is how to run, test, and ship it.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Stack
 
-```sh
-# create a new project
-npx sv create my-app
+SvelteKit 2 · **Svelte 5 (runes)** · `@sveltejs/adapter-node` · Tailwind v4 · paraglide (en / th-th) · vitest · playwright · undici.
+
+## Architecture (short)
+
+```
+Browser ─HTTPS─▶ render (SvelteKit, adapter-node)
+                  └ tailscaled (userspace) proxy :1055
+                       └WireGuard▶ mulan backend (chaiyarak 100.109.90.83:8085, private)
 ```
 
-To recreate this project with the same configuration:
+The browser only ever talks to the SvelteKit server (same-origin). `src/routes/api/[...path]/+server.ts` proxies allow-listed `/api/*` calls to the backend over Tailscale, injecting the bearer from an httpOnly session cookie. Auth = httpOnly cookie + `owner`/`staff` roles enforced by the backend.
+
+## Develop
+
+Requires Node 22+, npm, and a reachable `mulan` backend (locally on `:8080`, or the tailnet host).
 
 ```sh
-# recreate this project
-npx sv@0.16.1 create --template minimal --types ts --add prettier eslint vitest="usages:unit,component" tailwindcss="plugins:typography,forms" playwright mcp="ide:claude-code+setup:local" paraglide="languageTags:en, th-th+demo:no" --install npm mulan-manager
+npm install
+cp .env.example .env        # set BACKEND_URL; leave TS_HTTP_PROXY empty for dev (direct fetch)
+npm run dev                 # http://localhost:5173
 ```
 
-## Developing
+`.env` (dev):
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+```
+BACKEND_URL=http://localhost:8080     # or http://100.109.90.83:8085 to hit the live backend over the tailnet
+TS_HTTP_PROXY=                        # empty in dev = direct; the Tailscale proxy is prod-only
+TS_AUTHKEY=
+```
+
+Log in with a manager user (seed one on the backend: `go run ./cmd/create-manager-user -username owner -password '…' -name 'Owner' -role owner`).
+
+## Scripts
+
+| Command | What |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run build` / `npm run preview` | Production build (adapter-node) / preview |
+| `npm run check` | `svelte-check` (type-check) — must be 0 errors |
+| `npm run lint` / `npm run format` | prettier + eslint |
+| `npm run test:unit -- --run` | vitest unit tests (`src/**/*.spec.ts`) |
+| `npm run test:e2e` | playwright e2e (`e2e/` only) |
+
+Run e2e against the live backend:
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+BACKEND_URL=http://100.109.90.83:8085 E2E_USER=owner E2E_PASS=… npx playwright test
 ```
 
-## Building
+## Project structure
 
-To create a production version of your app:
-
-```sh
-npm run build
+```
+src/
+├── routes/
+│   ├── login/  logout/                 # auth (cookie set/cleared server-side)
+│   ├── api/[...path]/+server.ts         # allow-listed proxy → backend (cookie→bearer, binary-safe)
+│   └── (app)/                           # authenticated shell (4-tab nav)
+│       ├── +page.svelte                 # Dashboard
+│       ├── menu/  members/  more/       # tabs (More → option-groups, discounts, cashiers, settings, account)
+│       ├── option-groups/ cashiers/ settings/ discounts/
+│       └── …
+├── lib/
+│   ├── api/*.ts                         # typed clients (menus, members, settings, account, …)
+│   ├── components/ios/                  # iOS component library
+│   ├── server/                          # backend fetch + dispatcher + session
+│   └── styles/tokens.css                # iOS design tokens (light/dark)
+├── hooks.server.ts                      # session resolve + route guard (+ paraglide)
+e2e/                                     # playwright specs
+docs/superpowers/{specs,plans}/          # design + implementation docs
 ```
 
-You can preview the production build with `npm run preview`.
+## Deploy
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+render Docker web service, auto-deploys from `main`. Set env vars in render → **Environment** (not Secret Files): `BACKEND_URL`, `TS_HTTP_PROXY=http://127.0.0.1:1055`, `TS_AUTHKEY` (Tailscale **auth key** — make it **ephemeral + reusable** so redeploys don't pile up stale tailnet nodes), `TS_HOSTNAME`, `PORT=3000`. The container can't go live without joining the tailnet, so a stale/invalid `TS_AUTHKEY` blocks deploys. Backend deploy + ops: see `../mulan/CLAUDE.md`.
