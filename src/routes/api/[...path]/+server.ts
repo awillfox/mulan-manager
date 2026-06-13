@@ -4,7 +4,19 @@ import { getSessionToken } from '$lib/server/session';
 
 // Allowlisted backend path prefixes the browser may reach via this proxy.
 // NOT an open tunnel onto the tailnet — only these manager surfaces.
-const ALLOW = ['discounts', 'dashboard', 'auth/me', 'auth/logout'];
+const ALLOW = [
+	'discounts',
+	'dashboard',
+	'auth/me',
+	'auth/logout',
+	'menus',
+	'menu-categories',
+	'option-groups',
+	'options',
+	'members',
+	'cashiers',
+	'settings'
+];
 
 function allowed(path: string): boolean {
 	return ALLOW.some((p) => path === p || path.startsWith(p + '/') || path.startsWith(p + '?'));
