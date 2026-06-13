@@ -26,6 +26,7 @@
 	let fName = $state('');
 	let fPin = $state('');
 	let fActive = $state(true);
+	let fRole = $state<'cashier' | 'manager'>('cashier');
 	let newPin = $state('');
 	let saving = $state(false);
 
@@ -45,6 +46,7 @@
 		fName = '';
 		fPin = '';
 		fActive = true;
+		fRole = 'cashier';
 		newPin = '';
 		sheetOpen = true;
 	}
@@ -53,6 +55,7 @@
 		fLogin = c.login_id;
 		fName = c.name;
 		fActive = c.active;
+		fRole = c.role;
 		newPin = '';
 		sheetOpen = true;
 	}
@@ -61,7 +64,7 @@
 		if (!fName.trim()) return showToast('Name is required', 'error');
 		saving = true;
 		try {
-			if (editing) await updateCashier(editing.id, fName.trim(), fActive);
+			if (editing) await updateCashier(editing.id, fName.trim(), fActive, fRole);
 			else {
 				if (!fLogin.trim()) {
 					saving = false;
@@ -71,7 +74,7 @@
 					saving = false;
 					return showToast('PIN must be at least 4 digits', 'error');
 				}
-				await createCashier(fLogin.trim(), fName.trim(), fPin);
+				await createCashier(fLogin.trim(), fName.trim(), fPin, fRole);
 			}
 			sheetOpen = false;
 			await refresh();
@@ -128,6 +131,10 @@
 					<div class="flex items-center gap-2">
 						<span class="font-medium text-[var(--ios-label)]">{c.name}</span>
 						<span class="text-sm text-[var(--ios-label-secondary)]">{c.login_id}</span>
+						{#if c.role === 'manager'}<span
+								class="rounded-full bg-[var(--ios-blue,#007aff)] px-2 py-0.5 text-xs text-white"
+								>Manager</span
+							>{/if}
 						{#if !c.active}<span
 								class="rounded-full bg-[var(--ios-fill)] px-2 py-0.5 text-xs text-[var(--ios-label-secondary)]"
 								>Off</span
@@ -155,6 +162,16 @@
 			/>
 		{/if}
 		<Card><Toggle label="Active" bind:checked={fActive} /></Card>
+		<div>
+			<span class="block mb-1 text-sm text-[var(--ios-label-secondary)]">Role</span>
+			<select
+				bind:value={fRole}
+				class="h-11 w-full rounded-xl bg-[var(--ios-fill)] px-3 text-[var(--ios-label)] outline-none"
+			>
+				<option value="cashier">Cashier</option>
+				<option value="manager">Manager</option>
+			</select>
+		</div>
 		<Button onclick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
 		{#if editing}
 			<div class="space-y-2">
