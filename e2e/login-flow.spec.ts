@@ -20,6 +20,8 @@ test('login → dashboard → discounts CRUD', async ({ page }) => {
 	// Navigate to discounts and wait for the client list fetch to resolve. This
 	// also guarantees the page has hydrated before we interact (clicking before
 	// hydration would be a no-op and the sheet would never open).
+	// Discounts now lives under the "More" tab.
+	await page.getByRole('link', { name: 'More' }).click();
 	const listLoaded = page.waitForResponse(
 		(r) =>
 			r.url().includes('/api/discounts') &&
