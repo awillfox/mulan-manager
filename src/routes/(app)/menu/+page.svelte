@@ -183,6 +183,10 @@
 			if (id == null) {
 				const m = await createMenu(input);
 				id = m.id;
+				// Promote to edit mode immediately: if a later step (base options /
+				// option groups) fails, a Save retry must PATCH this menu, not create
+				// a duplicate.
+				editingId = m.id;
 			} else await updateMenu(id, input);
 
 			const base = baseRows

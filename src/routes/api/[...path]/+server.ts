@@ -36,7 +36,10 @@ const handler: RequestHandler = async ({ params, request, url, cookies }) => {
 	const res = await callBackend(backendPath, {
 		method,
 		token,
-		body: hasBody ? await request.text() : null,
+		// Read as ArrayBuffer (binary-safe). request.text() would UTF-8-decode and
+		// corrupt non-text bodies — e.g. multipart logo uploads. The original
+		// content-type (incl. the multipart boundary) is forwarded below.
+		body: hasBody ? await request.arrayBuffer() : null,
 		headers: hasBody ? { 'Content-Type': request.headers.get('content-type') ?? 'application/json' } : {}
 	});
 
