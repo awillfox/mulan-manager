@@ -40,13 +40,7 @@
 	});
 </script>
 
-<NavBar title="Dashboard">
-	{#snippet trailing()}
-		<form method="POST" action="/logout">
-			<button type="submit" class="font-semibold text-[var(--ios-blue)]">Sign Out</button>
-		</form>
-	{/snippet}
-</NavBar>
+<NavBar title="Dashboard" />
 
 <div class="space-y-4 px-4 pt-2 pb-6">
 	{#if loading}

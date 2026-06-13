@@ -41,9 +41,9 @@ test('login → dashboard → discounts CRUD', async ({ page }) => {
 
 	await expect(page.getByText(name)).toBeVisible();
 
-	// Sign out from the dashboard returns to /login and clears the session.
-	await page.getByRole('link', { name: 'Dashboard' }).click();
-	await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+	// Sign out from More → Account returns to /login and clears the session.
+	await page.getByRole('link', { name: 'More' }).click();
+	await expect(page.getByRole('heading', { name: 'More' })).toBeVisible();
 	await page.getByRole('button', { name: 'Sign Out' }).click();
 	await expect(page).toHaveURL(/\/login/);
 });

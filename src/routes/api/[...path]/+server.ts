@@ -9,6 +9,7 @@ const ALLOW = [
 	'dashboard',
 	'auth/me',
 	'auth/logout',
+	'auth/change-password',
 	'menus',
 	'menu-categories',
 	'option-groups',
