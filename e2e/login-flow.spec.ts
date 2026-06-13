@@ -17,11 +17,22 @@ test('login → dashboard → discounts CRUD', async ({ page }) => {
 	await expect(page).toHaveURL('/');
 	await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
+	// Navigate to discounts and wait for the client list fetch to resolve. This
+	// also guarantees the page has hydrated before we interact (clicking before
+	// hydration would be a no-op and the sheet would never open).
+	const listLoaded = page.waitForResponse(
+		(r) =>
+			r.url().includes('/api/discounts') &&
+			!r.url().includes('/active') &&
+			r.request().method() === 'GET'
+	);
 	await page.getByRole('link', { name: 'Discounts' }).click();
 	await expect(page.getByRole('heading', { name: 'Discounts' })).toBeVisible();
+	await listLoaded;
 
 	const name = 'E2E ' + Date.now();
 	await page.getByRole('button', { name: '＋ New' }).click();
+	await expect(page.getByPlaceholder('e.g. Staff 10%')).toBeVisible();
 	await page.getByPlaceholder('e.g. Staff 10%').fill(name);
 	await page.getByPlaceholder('50.00').fill('25');
 	await page.getByRole('button', { name: 'Save' }).click();
