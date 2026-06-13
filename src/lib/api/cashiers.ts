@@ -2,6 +2,7 @@ export interface Cashier {
 	id: number;
 	login_id: string;
 	name: string;
+	role: 'cashier' | 'manager';
 	active: boolean;
 }
 async function j<T>(res: Response): Promise<T> {
@@ -10,20 +11,20 @@ async function j<T>(res: Response): Promise<T> {
 	return b.data as T;
 }
 export const listCashiers = () => fetch('/api/cashiers').then((r) => j<Cashier[]>(r));
-export const createCashier = (login_id: string, name: string, pin: string) =>
+export const createCashier = (login_id: string, name: string, pin: string, role: 'cashier' | 'manager') =>
 	fetch('/api/cashiers', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ login_id, name, pin })
+		body: JSON.stringify({ login_id, name, pin, role })
 	}).then(async (r) => {
 		if (r.status === 409) throw new Error('Login ID already in use');
 		return j<Cashier>(r);
 	});
-export const updateCashier = (id: number, name: string, active: boolean) =>
+export const updateCashier = (id: number, name: string, active: boolean, role: 'cashier' | 'manager') =>
 	fetch(`/api/cashiers/${id}`, {
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ name, active })
+		body: JSON.stringify({ name, active, role })
 	}).then((r) => j<Cashier>(r));
 export const updateCashierPin = (id: number, pin: string) =>
 	fetch(`/api/cashiers/${id}/pin`, {
