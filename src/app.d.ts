@@ -1,12 +1,15 @@
-// See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
+export interface ManagerUser {
+	id: number;
+	username: string;
+	name: string;
+	role: 'owner' | 'staff';
+}
+
 declare global {
 	namespace App {
-		// interface Error {}
-		// interface Locals {}
-		// interface PageData {}
-		// interface PageState {}
-		// interface Platform {}
+		interface Locals {
+			user: ManagerUser | null;
+		}
 	}
 }
 
