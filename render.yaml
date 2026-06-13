@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mulan-manager
+    runtime: docker
+    plan: starter
+    healthCheckPath: /login
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: BACKEND_URL
+        sync: false # set to http://<backend-magicdns-host>:8080 in the dashboard
+      - key: TS_HTTP_PROXY
+        value: http://127.0.0.1:1055
+      - key: TS_AUTHKEY
+        sync: false # ephemeral, tagged Tailscale auth key — set as a secret
+      - key: TS_HOSTNAME
+        value: mulan-manager
