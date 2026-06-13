@@ -22,7 +22,11 @@ export const actions: Actions = {
 			});
 		}
 		setSession(cookies, payload.data.token);
+		// Only allow same-origin, absolute-path redirects. Reject protocol-relative
+		// (`//evil.com`) and backslash (`/\evil.com`) targets — open-redirect vectors.
 		const next = url.searchParams.get('next') ?? '/';
-		throw redirect(303, next.startsWith('/') ? next : '/');
+		const dest =
+			next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/';
+		throw redirect(303, dest);
 	}
 };

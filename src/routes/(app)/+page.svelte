@@ -19,10 +19,13 @@
 		loading = true;
 		errored = false;
 		try {
-			const [s, t] = await Promise.all([
-				fetch('/api/dashboard/').then((r) => r.json()),
-				fetch('/api/dashboard/top-menus').then((r) => r.json())
+			const [sRes, tRes] = await Promise.all([
+				fetch('/api/dashboard/'),
+				fetch('/api/dashboard/top-menus')
 			]);
+			if (!sRes.ok || !tRes.ok) throw new Error('dashboard request failed');
+			const s = await sRes.json();
+			const t = await tRes.json();
 			summary = s.data;
 			top = t.data ?? [];
 		} catch {
@@ -37,7 +40,13 @@
 	});
 </script>
 
-<NavBar title="Dashboard" />
+<NavBar title="Dashboard">
+	{#snippet trailing()}
+		<form method="POST" action="/logout">
+			<button type="submit" class="font-semibold text-[var(--ios-blue)]">Sign Out</button>
+		</form>
+	{/snippet}
+</NavBar>
 
 <div class="space-y-4 px-4 pt-2 pb-6">
 	{#if loading}

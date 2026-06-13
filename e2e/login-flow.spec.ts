@@ -38,4 +38,10 @@ test('login → dashboard → discounts CRUD', async ({ page }) => {
 	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.getByText(name)).toBeVisible();
+
+	// Sign out from the dashboard returns to /login and clears the session.
+	await page.getByRole('link', { name: 'Dashboard' }).click();
+	await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+	await page.getByRole('button', { name: 'Sign Out' }).click();
+	await expect(page).toHaveURL(/\/login/);
 });

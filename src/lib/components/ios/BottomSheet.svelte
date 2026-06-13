@@ -12,6 +12,12 @@
 	}
 </script>
 
+<svelte:window
+	onkeydown={(e) => {
+		if (open && e.key === 'Escape') close();
+	}}
+/>
+
 {#if open}
 	<div class="fixed inset-0 z-40">
 		<button
