@@ -7,7 +7,7 @@ import { getSessionToken, clearSession } from '$lib/server/session';
 import type { ManagerUser } from './app.d';
 
 // Routes reachable without a session.
-const PUBLIC_PATHS = ['/login'];
+const PUBLIC_PATHS = ['/login', '/_diag'];
 
 const handleParaglide: Handle = ({ event, resolve }) =>
 	paraglideMiddleware(event.request, ({ request, locale }) => {
