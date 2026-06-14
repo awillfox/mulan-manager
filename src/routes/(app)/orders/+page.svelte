@@ -9,6 +9,7 @@
 	import { presetRange, type Preset } from '$lib/dashboard/range';
 	import { listOrders, listAllOrders, type OrderRow } from '$lib/api/reports';
 	import { exportOrdersXlsx } from '$lib/export/ordersXlsx';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	const PAGE = 100;
 
@@ -35,7 +36,9 @@
 	let loading = $state(true);
 	let loadingMore = $state(false);
 	let errored = $state(false);
-	let expanded = $state<string | null>(null);
+	// Codes of orders whose detail row is open. Multiple stay open independently;
+	// clicking another order does not collapse the others.
+	const expanded = new SvelteSet<string>();
 
 	function range(): { from: string; to: string } {
 		if (customFrom && customTo) return { from: customFrom, to: customTo };
@@ -46,7 +49,7 @@
 		if (reset) {
 			loading = true;
 			errored = false;
-			expanded = null;
+			expanded.clear();
 		} else {
 			loadingMore = true;
 		}
@@ -66,7 +69,16 @@
 	}
 
 	function toggle(code: string) {
-		expanded = expanded === code ? null : code;
+		if (expanded.has(code)) expanded.delete(code);
+		else expanded.add(code);
+	}
+
+	function expandAll() {
+		for (const o of orders) expanded.add(o.code);
+	}
+
+	function collapseAll() {
+		expanded.clear();
 	}
 
 	let exporting = $state(false);
@@ -134,15 +146,23 @@
 	{:else if orders.length === 0}
 		<EmptyState title="No orders" subtitle="No orders in this range." />
 	{:else}
-		<div class="flex items-center justify-between px-1">
+		<div class="flex items-center justify-between gap-3 px-1">
 			<p class="text-xs text-[var(--ios-label-secondary)]">{orders.length} of {total}</p>
-			<button
-				class="text-sm font-medium text-[var(--ios-blue)] disabled:opacity-50"
-				disabled={exporting || orders.length === 0}
-				onclick={exportXlsx}
-			>
-				{exporting ? 'Exporting…' : 'Export .xlsx'}
-			</button>
+			<div class="flex items-center gap-4 text-sm font-medium">
+				<button class="text-[var(--ios-blue)]" onclick={expandAll}>Expand all</button>
+				<button
+					class="text-[var(--ios-blue)] disabled:opacity-50"
+					disabled={expanded.size === 0}
+					onclick={collapseAll}>Collapse all</button
+				>
+				<button
+					class="text-[var(--ios-blue)] disabled:opacity-50"
+					disabled={exporting || orders.length === 0}
+					onclick={exportXlsx}
+				>
+					{exporting ? 'Exporting…' : 'Export .xlsx'}
+				</button>
+			</div>
 		</div>
 		<Card padded={false}>
 			<div class="overflow-x-auto">
@@ -186,7 +206,7 @@
 									>{baht(o.net)}</td
 								>
 							</tr>
-							{#if expanded === o.code}
+							{#if expanded.has(o.code)}
 								<tr class="border-b border-[var(--ios-separator)] bg-[var(--ios-fill)]">
 									<td colspan="8" class="px-4 py-3">
 										<div class="space-y-2 text-sm">
