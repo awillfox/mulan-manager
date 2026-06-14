@@ -18,15 +18,15 @@
 
 ## File Structure
 
-| File | Responsibility |
-|---|---|
-| `package.json` (modify) | add `write-excel-file` |
-| `src/lib/export/ordersRows.ts` (new) | pure `ExportRow` type + `ordersToRows()` |
-| `src/lib/export/ordersRows.spec.ts` (new) | unit test for `ordersToRows` |
-| `src/lib/api/reports.ts` (modify) | add `listAllOrders()` paginator |
-| `src/lib/api/reports.spec.ts` (modify) | add `listAllOrders` tests |
-| `src/lib/export/ordersXlsx.ts` (new) | browser-only `exportOrdersXlsx()` (dynamic-imports the lib) |
-| `src/routes/(app)/orders/+page.svelte` (modify) | Export button + `exporting` state |
+| File                                            | Responsibility                                              |
+| ----------------------------------------------- | ----------------------------------------------------------- |
+| `package.json` (modify)                         | add `write-excel-file`                                      |
+| `src/lib/export/ordersRows.ts` (new)            | pure `ExportRow` type + `ordersToRows()`                    |
+| `src/lib/export/ordersRows.spec.ts` (new)       | unit test for `ordersToRows`                                |
+| `src/lib/api/reports.ts` (modify)               | add `listAllOrders()` paginator                             |
+| `src/lib/api/reports.spec.ts` (modify)          | add `listAllOrders` tests                                   |
+| `src/lib/export/ordersXlsx.ts` (new)            | browser-only `exportOrdersXlsx()` (dynamic-imports the lib) |
+| `src/routes/(app)/orders/+page.svelte` (modify) | Export button + `exporting` state                           |
 
 `ordersToRows` lives in its OWN file (not `ordersXlsx.ts`) so the node unit test never loads the browser-only `write-excel-file`.
 
@@ -47,10 +47,12 @@ Run: `npm run check`
 Expected: still 0 errors (no usage yet).
 
 - [ ] **Step 3: Commit**
+
 ```bash
 git add package.json package-lock.json
 git commit -m "chore(manager): add write-excel-file dep"
 ```
+
 (End every commit body with:
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>)
 
@@ -63,6 +65,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>)
 - [ ] **Step 1: Write the failing test**
 
 Create `src/lib/export/ordersRows.spec.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { ordersToRows } from './ordersRows';
@@ -117,6 +120,7 @@ Expected: FAIL — cannot resolve `./ordersRows`.
 - [ ] **Step 3: Implement**
 
 Create `src/lib/export/ordersRows.ts`:
+
 ```ts
 import type { OrderRow } from '$lib/api/reports';
 
@@ -157,6 +161,7 @@ Run: `npm run test:unit -- --run src/lib/export/ordersRows.spec.ts`
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Commit**
+
 ```bash
 git add src/lib/export/ordersRows.ts src/lib/export/ordersRows.spec.ts
 git commit -m "feat(manager): pure ordersToRows mapper (TDD)"
@@ -171,6 +176,7 @@ git commit -m "feat(manager): pure ordersToRows mapper (TDD)"
 - [ ] **Step 1: Add the failing test**
 
 Append to `src/lib/api/reports.spec.ts` (keep the existing `ordersQS` tests; add these imports/tests):
+
 ```ts
 import { afterEach, vi } from 'vitest';
 import { listAllOrders } from './reports';
@@ -224,6 +230,7 @@ describe('listAllOrders', () => {
 	});
 });
 ```
+
 (If the file's existing top imports already import from `'vitest'`, merge `afterEach, vi` into that import instead of adding a duplicate line. Keep one `import ... from 'vitest'`.)
 
 - [ ] **Step 2: Run it — verify fail**
@@ -234,6 +241,7 @@ Expected: FAIL — `listAllOrders` is not exported.
 - [ ] **Step 3: Implement**
 
 In `src/lib/api/reports.ts`, append after the existing `listOrders` export:
+
 ```ts
 const EXPORT_PAGE = 200;
 
@@ -259,6 +267,7 @@ Run: `npm run test:unit -- --run src/lib/api/reports.spec.ts`
 Expected: PASS (existing `ordersQS` + 2 new `listAllOrders` tests).
 
 - [ ] **Step 5: Commit**
+
 ```bash
 git add src/lib/api/reports.ts src/lib/api/reports.spec.ts
 git commit -m "feat(manager): listAllOrders paginator (TDD)"
@@ -273,6 +282,7 @@ git commit -m "feat(manager): listAllOrders paginator (TDD)"
 - [ ] **Step 1: Implement the export builder**
 
 Create `src/lib/export/ordersXlsx.ts`:
+
 ```ts
 import type { OrderRow } from '$lib/api/reports';
 import { ordersToRows, type ExportRow } from './ordersRows';
@@ -285,16 +295,40 @@ export async function exportOrdersXlsx(orders: OrderRow[], fileName: string): Pr
 	const rows = ordersToRows(orders);
 
 	const schema = [
-		{ column: 'Date', type: Date, format: 'dd/mm/yyyy hh:mm', width: 16, value: (r: ExportRow) => r.date },
+		{
+			column: 'Date',
+			type: Date,
+			format: 'dd/mm/yyyy hh:mm',
+			width: 16,
+			value: (r: ExportRow) => r.date
+		},
 		{ column: 'Code', type: String, width: 12, value: (r: ExportRow) => r.code },
 		{ column: 'Status', type: String, width: 8, value: (r: ExportRow) => r.status },
 		{ column: 'Member', type: String, width: 16, value: (r: ExportRow) => r.member },
 		{ column: 'Phone', type: String, width: 14, value: (r: ExportRow) => r.phone },
 		{ column: 'Points', type: Number, format: '0', width: 8, value: (r: ExportRow) => r.points },
 		{ column: 'Items', type: Number, format: '0', width: 6, value: (r: ExportRow) => r.items },
-		{ column: 'Gross', type: Number, format: '#,##0.00', width: 12, value: (r: ExportRow) => r.gross },
-		{ column: 'Discount', type: Number, format: '#,##0.00', width: 12, value: (r: ExportRow) => r.discount },
-		{ column: 'Subsidy', type: Number, format: '#,##0.00', width: 12, value: (r: ExportRow) => r.subsidy },
+		{
+			column: 'Gross',
+			type: Number,
+			format: '#,##0.00',
+			width: 12,
+			value: (r: ExportRow) => r.gross
+		},
+		{
+			column: 'Discount',
+			type: Number,
+			format: '#,##0.00',
+			width: 12,
+			value: (r: ExportRow) => r.discount
+		},
+		{
+			column: 'Subsidy',
+			type: Number,
+			format: '#,##0.00',
+			width: 12,
+			value: (r: ExportRow) => r.subsidy
+		},
 		{ column: 'Net', type: Number, format: '#,##0.00', width: 12, value: (r: ExportRow) => r.net }
 	];
 
@@ -312,47 +346,53 @@ Expected: 0 errors. If `write-excel-file`'s `Schema` generic rejects the inline 
 In `src/routes/(app)/orders/+page.svelte`:
 
 (a) Add imports next to the existing `listOrders` import:
+
 ```ts
-	import { listOrders, listAllOrders, type OrderRow } from '$lib/api/reports';
-	import { exportOrdersXlsx } from '$lib/export/ordersXlsx';
+import { listOrders, listAllOrders, type OrderRow } from '$lib/api/reports';
+import { exportOrdersXlsx } from '$lib/export/ordersXlsx';
 ```
+
 (replace the existing `import { listOrders, type OrderRow } from '$lib/api/reports';` line with the first line above).
 
 (b) Add state + handler (next to the other `$state` declarations / `load` function):
-```ts
-	let exporting = $state(false);
 
-	async function exportXlsx() {
-		exporting = true;
-		try {
-			const { from, to } = range();
-			const all = await listAllOrders({ from, to, status: status || undefined });
-			const name = `orders-${from}-to-${to}${status ? '-' + status : ''}.xlsx`;
-			await exportOrdersXlsx(all, name);
-		} catch (e) {
-			showToast((e as Error).message, 'error');
-		} finally {
-			exporting = false;
-		}
+```ts
+let exporting = $state(false);
+
+async function exportXlsx() {
+	exporting = true;
+	try {
+		const { from, to } = range();
+		const all = await listAllOrders({ from, to, status: status || undefined });
+		const name = `orders-${from}-to-${to}${status ? '-' + status : ''}.xlsx`;
+		await exportOrdersXlsx(all, name);
+	} catch (e) {
+		showToast((e as Error).message, 'error');
+	} finally {
+		exporting = false;
 	}
+}
 ```
 
 (c) Replace the existing count line:
+
 ```svelte
-		<p class="px-1 text-xs text-[var(--ios-label-secondary)]">{orders.length} of {total}</p>
+<p class="px-1 text-xs text-[var(--ios-label-secondary)]">{orders.length} of {total}</p>
 ```
+
 with a flex row holding the count + the Export button:
+
 ```svelte
-		<div class="flex items-center justify-between px-1">
-			<p class="text-xs text-[var(--ios-label-secondary)]">{orders.length} of {total}</p>
-			<button
-				class="text-sm font-medium text-[var(--ios-blue)] disabled:opacity-50"
-				disabled={exporting || orders.length === 0}
-				onclick={exportXlsx}
-			>
-				{exporting ? 'Exporting…' : 'Export .xlsx'}
-			</button>
-		</div>
+<div class="flex items-center justify-between px-1">
+	<p class="text-xs text-[var(--ios-label-secondary)]">{orders.length} of {total}</p>
+	<button
+		class="text-sm font-medium text-[var(--ios-blue)] disabled:opacity-50"
+		disabled={exporting || orders.length === 0}
+		onclick={exportXlsx}
+	>
+		{exporting ? 'Exporting…' : 'Export .xlsx'}
+	</button>
+</div>
 ```
 
 - [ ] **Step 4: Typecheck + build**
@@ -363,6 +403,7 @@ Run: `npm run build`
 Expected: success (confirms the dynamic import + SSR are fine).
 
 - [ ] **Step 5: Commit**
+
 ```bash
 git add src/lib/export/ordersXlsx.ts 'src/routes/(app)/orders/+page.svelte'
 git commit -m "feat(manager): export orders to .xlsx (current filter)"
@@ -383,6 +424,7 @@ Expected: all tests pass, 0 type errors, build succeeds.
 
 Run: `git diff --name-only main HEAD | while read f; do [ -f "$f" ] && echo "$f"; done | xargs npx prettier --write`
 Then commit if anything changed:
+
 ```bash
 git commit -am "chore(manager): prettier format xlsx export" || echo "nothing to format"
 ```
@@ -390,6 +432,7 @@ git commit -am "chore(manager): prettier format xlsx export" || echo "nothing to
 - [ ] **Step 3: Manual**
 
 `npm run dev`, logged in, on `/orders`:
+
 - Set a filter (status + range), click **Export .xlsx** → a file `orders-<from>-to-<to>[-<status>].xlsx` downloads.
 - Open it: header row + one row per order, money columns are numeric (`#,##0.00`), Date sorts as a date, row count equals the filter's `total` (not just the loaded page).
 - Trigger a fetch error (e.g. stop the backend) → a toast shows; button re-enables.
@@ -402,4 +445,7 @@ git commit -am "chore(manager): prettier format xlsx export" || echo "nothing to
 - **Type consistency:** `ExportRow` fields (T2) ↔ schema `value` fns (T4); `OrderRow` reused from `reports.ts`; `listAllOrders(Omit<OrdersQuery,'limit'|'offset'>)` (T3) ↔ called with `{from,to,status}` (T4); `ordersToRows` signature T2 ↔ used in T4.
 - **Refinement vs spec:** `ordersToRows` split into `ordersRows.ts` (pure, no lib) so its node test doesn't import the browser-only lib; `exportOrdersXlsx` dynamic-imports `write-excel-file` (SSR/bundle safety). Noted in File Structure.
 - **Known risk:** `write-excel-file` TS `Schema` typing — T4 Step 2 gives the fallback (annotate `Schema<ExportRow>` or cast).
+
+```
+
 ```

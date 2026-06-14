@@ -34,49 +34,55 @@ active filter) as an Excel file generated in the browser.
 ## Architecture (small, isolated units)
 
 ### 1. `listAllOrders(query)` — in `src/lib/api/reports.ts`
+
 Fetches every order matching the filter by looping `listOrders` with `limit=200`,
 incrementing `offset` by the returned page length until `accumulated.length >= total`
 (or a page returns empty). Returns `OrderRow[]`. Guards against infinite loop: stop if
 a page returns 0 rows. Signature: `listAllOrders(q: Omit<OrdersQuery,'limit'|'offset'>): Promise<OrderRow[]>`.
 
 ### 2. `ordersToRows(orders)` — pure, in `src/lib/export/ordersXlsx.ts`
+
 Maps `OrderRow[]` → `ExportRow[]` where
+
 ```ts
 interface ExportRow {
-  date: Date;     // new Date(created_at)
-  code: string;
-  status: string;
-  member: string; // member_name
-  phone: string;  // member_phone
-  points: number; // points_earned
-  items: number;  // qty
-  gross: number;
-  discount: number;
-  subsidy: number;
-  net: number;
+	date: Date; // new Date(created_at)
+	code: string;
+	status: string;
+	member: string; // member_name
+	phone: string; // member_phone
+	points: number; // points_earned
+	items: number; // qty
+	gross: number;
+	discount: number;
+	subsidy: number;
+	net: number;
 }
 ```
+
 Unit-tested (pure).
 
 ### 3. `exportOrdersXlsx(orders, fileName)` — browser-only, in `src/lib/export/ordersXlsx.ts`
+
 Builds the `write-excel-file` schema (columns below) from `ordersToRows(orders)` and
 calls `writeXlsxFile(rows, { schema, fileName })`. Schema column types/formats:
 
-| Column | type | format | width |
-|---|---|---|---|
-| Date | Date | `dd/mm/yyyy hh:mm` | 16 |
-| Code | String | — | 12 |
-| Status | String | — | 8 |
-| Member | String | — | 16 |
-| Phone | String | — | 14 |
-| Points | Number | `0` | 8 |
-| Items | Number | `0` | 6 |
-| Gross | Number | `#,##0.00` | 12 |
-| Discount | Number | `#,##0.00` | 12 |
-| Subsidy | Number | `#,##0.00` | 12 |
-| Net | Number | `#,##0.00` | 12 |
+| Column   | type   | format             | width |
+| -------- | ------ | ------------------ | ----- |
+| Date     | Date   | `dd/mm/yyyy hh:mm` | 16    |
+| Code     | String | —                  | 12    |
+| Status   | String | —                  | 8     |
+| Member   | String | —                  | 16    |
+| Phone    | String | —                  | 14    |
+| Points   | Number | `0`                | 8     |
+| Items    | Number | `0`                | 6     |
+| Gross    | Number | `#,##0.00`         | 12    |
+| Discount | Number | `#,##0.00`         | 12    |
+| Subsidy  | Number | `#,##0.00`         | 12    |
+| Net      | Number | `#,##0.00`         | 12    |
 
 ### 4. Page wiring — `src/routes/(app)/orders/+page.svelte`
+
 - An "Export .xlsx" button beside the `loaded / total` line. Disabled when
   `orders.length === 0` or `exporting`.
 - On click: `exporting = true` → `listAllOrders({ from, to, status: status || undefined })`
