@@ -47,6 +47,7 @@
 		"vitest-browser-svelte": "^2.1.1"
 	},
 	"dependencies": {
+		"chart.js": "^4.5.1",
 		"undici": "^8.4.1"
 	}
 }
