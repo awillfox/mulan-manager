@@ -8,7 +8,8 @@ import {
 	DoughnutController,
 	ArcElement,
 	Tooltip,
-	Filler
+	Filler,
+	Legend
 } from 'chart.js';
 
 let registered = false;
@@ -25,7 +26,8 @@ export function ensureChart(): typeof Chart {
 			DoughnutController,
 			ArcElement,
 			Tooltip,
-			Filler
+			Filler,
+			Legend
 		);
 		registered = true;
 	}
