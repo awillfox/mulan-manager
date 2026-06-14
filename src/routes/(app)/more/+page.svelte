@@ -109,7 +109,12 @@
 
 <BottomSheet bind:open={pwOpen} title="Change Password">
 	<div class="space-y-4 pb-6">
-		<TextField label="Current password" bind:value={current} type="password" placeholder="••••••••" />
+		<TextField
+			label="Current password"
+			bind:value={current}
+			type="password"
+			placeholder="••••••••"
+		/>
 		<TextField
 			label="New password (min 8)"
 			bind:value={next}

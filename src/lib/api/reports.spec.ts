@@ -12,6 +12,8 @@ describe('ordersQS', () => {
 		expect(qs).toBe('from=2026-06-08&to=2026-06-14');
 	});
 	it('includes status when set', () => {
-		expect(ordersQS({ from: '2026-06-08', to: '2026-06-14', status: 'paid' })).toContain('status=paid');
+		expect(ordersQS({ from: '2026-06-08', to: '2026-06-14', status: 'paid' })).toContain(
+			'status=paid'
+		);
 	});
 });

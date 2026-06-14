@@ -43,7 +43,9 @@ const handler: RequestHandler = async ({ params, request, url, cookies }) => {
 		// corrupt non-text bodies — e.g. multipart logo uploads. The original
 		// content-type (incl. the multipart boundary) is forwarded below.
 		body: hasBody ? await request.arrayBuffer() : null,
-		headers: hasBody ? { 'Content-Type': request.headers.get('content-type') ?? 'application/json' } : {}
+		headers: hasBody
+			? { 'Content-Type': request.headers.get('content-type') ?? 'application/json' }
+			: {}
 	});
 
 	// Stream the backend response straight back (covers JSON and SSE).

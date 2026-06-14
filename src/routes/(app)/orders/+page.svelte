@@ -141,11 +141,15 @@
 								class="cursor-pointer border-b border-[var(--ios-separator)] hover:bg-[var(--ios-fill)]"
 								onclick={() => toggle(o.code)}
 							>
-								<td class="px-3 py-2 whitespace-nowrap text-[var(--ios-label)]">{dt(o.created_at)}</td>
+								<td class="px-3 py-2 whitespace-nowrap text-[var(--ios-label)]"
+									>{dt(o.created_at)}</td
+								>
 								<td class="px-3 py-2 font-mono text-[var(--ios-label)]">{o.code}</td>
 								<td class="px-3 py-2 text-[var(--ios-label-secondary)]">{o.status}</td>
 								<td class="px-3 py-2 text-right text-[var(--ios-label)]">{o.qty}</td>
-								<td class="px-3 py-2 text-right font-mono text-[var(--ios-label)]">{baht(o.gross)}</td>
+								<td class="px-3 py-2 text-right font-mono text-[var(--ios-label)]"
+									>{baht(o.gross)}</td
+								>
 								<td class="px-3 py-2 text-right font-mono text-[var(--ios-label-secondary)]"
 									>{baht(o.discount)}</td
 								>
@@ -162,7 +166,8 @@
 										<div class="space-y-2 text-sm">
 											{#if o.member_name || o.member_phone}
 												<p class="text-[var(--ios-label-secondary)]">
-													Member: {o.member_name} {o.member_phone} · {o.points_earned} pts
+													Member: {o.member_name}
+													{o.member_phone} · {o.points_earned} pts
 												</p>
 											{/if}
 											{#each o.line_items as li (li.name + li.base_option_name)}
@@ -173,11 +178,17 @@
 																? ` (${li.base_option_name})`
 																: ''}
 														</span>
-														<span class="font-mono text-[var(--ios-label-secondary)]">{baht(li.price)}</span>
+														<span class="font-mono text-[var(--ios-label-secondary)]"
+															>{baht(li.price)}</span
+														>
 													</div>
 													{#each li.options as op (op.name)}
-														<div class="flex justify-between pl-4 text-[var(--ios-label-secondary)]">
-															<span>+ {op.name}</span><span class="font-mono">{baht(op.price_delta)}</span>
+														<div
+															class="flex justify-between pl-4 text-[var(--ios-label-secondary)]"
+														>
+															<span>+ {op.name}</span><span class="font-mono"
+																>{baht(op.price_delta)}</span
+															>
 														</div>
 													{/each}
 												</div>
