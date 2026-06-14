@@ -61,3 +61,20 @@ async function j<T>(res: Response): Promise<T> {
 
 export const listOrders = (q: OrdersQuery) =>
 	fetch(`/api/reports/orders?${ordersQS(q)}`).then((r) => j<OrdersPage>(r));
+
+const EXPORT_PAGE = 200;
+
+// listAllOrders fetches every order matching the filter by paging the endpoint
+// (which caps limit at 200) until it has `total` rows. Stops if a page returns
+// empty, so a bad total can't spin forever.
+export async function listAllOrders(q: Omit<OrdersQuery, 'limit' | 'offset'>): Promise<OrderRow[]> {
+	const all: OrderRow[] = [];
+	let offset = 0;
+	for (;;) {
+		const page = await listOrders({ ...q, limit: EXPORT_PAGE, offset });
+		all.push(...page.orders);
+		offset += page.orders.length;
+		if (page.orders.length === 0 || all.length >= page.total) break;
+	}
+	return all;
+}
