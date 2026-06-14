@@ -11,6 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-06-14-manager-desktop-report-parity-design.md`
 
 **Conventions (verified):**
+
 - Run one test file: `npm run test:unit -- --run <path>` · all: `npm run test:unit -- --run`
 - Types: `npm run check` · Lint/format: `npm run lint` / `npm run format`
 - Node specs `*.spec.ts` (server project); component specs `*.svelte.spec.ts` (chromium browser project). `requireAssertions` is on — every test must assert.
@@ -20,23 +21,23 @@
 
 ## File Structure
 
-| File | Responsibility |
-|---|---|
-| `src/lib/format.ts` (+ `.spec.ts`) | `baht(n)` THB formatter |
-| `src/lib/dashboard/types.ts` | Shared API response types |
-| `src/lib/dashboard/range.ts` (+ `.spec.ts`) | Preset → `{from,to}` ISO range |
-| `src/lib/dashboard/delta.ts` (+ `.spec.ts`) | `deltaPct` + `deltaLabel` |
-| `src/lib/dashboard/api.ts` | Typed fetchers + `loadDashboard(range)` |
-| `src/lib/charts/chartTheme.ts` | Chart.js controller registration + palette |
-| `src/lib/charts/donutData.ts` (+ `.spec.ts`) | `topNWithOther` reducer |
-| `src/lib/components/charts/Waterfall.svelte` (+ `.svelte.spec.ts`) | Sales-breakdown rows |
-| `src/lib/components/charts/Heatmap.svelte` (+ `.svelte.spec.ts`) | 7×24 CSS grid |
-| `src/lib/components/charts/SalesChart.svelte` (+ `.svelte.spec.ts`) | Chart.js line |
-| `src/lib/components/charts/Donut.svelte` (+ `.svelte.spec.ts`) | Chart.js doughnut |
-| `src/lib/components/ios/SideNav.svelte` | Desktop sidebar |
-| `src/routes/(app)/+layout.svelte` *(modify)* | Responsive shell |
-| `src/routes/(app)/+page.svelte` *(modify)* | Assembled report page |
-| `package.json` *(modify)* | Add `chart.js` |
+| File                                                                | Responsibility                             |
+| ------------------------------------------------------------------- | ------------------------------------------ |
+| `src/lib/format.ts` (+ `.spec.ts`)                                  | `baht(n)` THB formatter                    |
+| `src/lib/dashboard/types.ts`                                        | Shared API response types                  |
+| `src/lib/dashboard/range.ts` (+ `.spec.ts`)                         | Preset → `{from,to}` ISO range             |
+| `src/lib/dashboard/delta.ts` (+ `.spec.ts`)                         | `deltaPct` + `deltaLabel`                  |
+| `src/lib/dashboard/api.ts`                                          | Typed fetchers + `loadDashboard(range)`    |
+| `src/lib/charts/chartTheme.ts`                                      | Chart.js controller registration + palette |
+| `src/lib/charts/donutData.ts` (+ `.spec.ts`)                        | `topNWithOther` reducer                    |
+| `src/lib/components/charts/Waterfall.svelte` (+ `.svelte.spec.ts`)  | Sales-breakdown rows                       |
+| `src/lib/components/charts/Heatmap.svelte` (+ `.svelte.spec.ts`)    | 7×24 CSS grid                              |
+| `src/lib/components/charts/SalesChart.svelte` (+ `.svelte.spec.ts`) | Chart.js line                              |
+| `src/lib/components/charts/Donut.svelte` (+ `.svelte.spec.ts`)      | Chart.js doughnut                          |
+| `src/lib/components/ios/SideNav.svelte`                             | Desktop sidebar                            |
+| `src/routes/(app)/+layout.svelte` _(modify)_                        | Responsive shell                           |
+| `src/routes/(app)/+page.svelte` _(modify)_                          | Assembled report page                      |
+| `package.json` _(modify)_                                           | Add `chart.js`                             |
 
 ---
 
@@ -52,6 +53,7 @@ Expected: `package.json` `dependencies` gains `chart.js`; lockfile updated.
 - [ ] **Step 2: Write the failing test**
 
 Create `src/lib/format.spec.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { baht } from './format';
@@ -75,11 +77,11 @@ Expected: FAIL — cannot resolve `./format`.
 - [ ] **Step 4: Implement**
 
 Create `src/lib/format.ts`:
+
 ```ts
 export function baht(n: number): string {
 	return (
-		'฿' +
-		(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+		'฿' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 	);
 }
 ```
@@ -90,6 +92,7 @@ Run: `npm run test:unit -- --run src/lib/format.spec.ts`
 Expected: PASS (2 tests).
 
 - [ ] **Step 6: Commit**
+
 ```bash
 git add package.json package-lock.json src/lib/format.ts src/lib/format.spec.ts
 git commit -m "feat(manager): add chart.js dep + baht formatter"
@@ -104,6 +107,7 @@ git commit -m "feat(manager): add chart.js dep + baht formatter"
 - [ ] **Step 1: Write the failing test**
 
 Create `src/lib/dashboard/range.spec.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { presetRange } from './range';
@@ -134,6 +138,7 @@ Expected: FAIL — cannot resolve `./range`.
 - [ ] **Step 3: Implement**
 
 Create `src/lib/dashboard/range.ts`:
+
 ```ts
 export type Preset = 'today' | '7d' | '30d' | '90d';
 export interface Range {
@@ -164,6 +169,7 @@ Run: `npm run test:unit -- --run src/lib/dashboard/range.spec.ts`
 Expected: PASS (4 tests).
 
 - [ ] **Step 5: Commit**
+
 ```bash
 git add src/lib/dashboard/range.ts src/lib/dashboard/range.spec.ts
 git commit -m "feat(manager): date preset -> range util"
@@ -178,6 +184,7 @@ git commit -m "feat(manager): date preset -> range util"
 - [ ] **Step 1: Write the failing test**
 
 Create `src/lib/dashboard/delta.spec.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { deltaPct, deltaLabel } from './delta';
@@ -212,6 +219,7 @@ Expected: FAIL — cannot resolve `./delta`.
 - [ ] **Step 3: Implement**
 
 Create `src/lib/dashboard/delta.ts`:
+
 ```ts
 export function deltaPct(curr: number, prev: number): number | null {
 	if (!prev) return null;
@@ -231,6 +239,7 @@ Run: `npm run test:unit -- --run src/lib/dashboard/delta.spec.ts`
 Expected: PASS (5 tests).
 
 - [ ] **Step 5: Commit**
+
 ```bash
 git add src/lib/dashboard/delta.ts src/lib/dashboard/delta.spec.ts
 git commit -m "feat(manager): KPI delta util"
@@ -247,6 +256,7 @@ git commit -m "feat(manager): KPI delta util"
 - [ ] **Step 1: Create types**
 
 Create `src/lib/dashboard/types.ts`:
+
 ```ts
 export interface PeriodStats {
 	revenue: number;
@@ -290,15 +300,10 @@ export interface SubsidyProgram {
 - [ ] **Step 2: Create loader**
 
 Create `src/lib/dashboard/api.ts`:
+
 ```ts
 import type { Range } from './range';
-import type {
-	CompareResult,
-	DayPoint,
-	HeatmapCell,
-	TopMenu,
-	SubsidyProgram
-} from './types';
+import type { CompareResult, DayPoint, HeatmapCell, TopMenu, SubsidyProgram } from './types';
 
 async function get<T>(path: string): Promise<T> {
 	const res = await fetch(path);
@@ -334,6 +339,7 @@ Run: `npm run check`
 Expected: no new errors in `src/lib/dashboard/*`.
 
 - [ ] **Step 4: Commit**
+
 ```bash
 git add src/lib/dashboard/types.ts src/lib/dashboard/api.ts
 git commit -m "feat(manager): dashboard API types + loader"
@@ -348,6 +354,7 @@ git commit -m "feat(manager): dashboard API types + loader"
 - [ ] **Step 1: Write the failing test**
 
 Create `src/lib/charts/donutData.spec.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { topNWithOther } from './donutData';
@@ -381,6 +388,7 @@ Expected: FAIL — cannot resolve `./donutData`.
 - [ ] **Step 3: Implement reducer**
 
 Create `src/lib/charts/donutData.ts`:
+
 ```ts
 import type { TopMenu } from '$lib/dashboard/types';
 
@@ -408,6 +416,7 @@ Expected: PASS (2 tests).
 - [ ] **Step 5: Implement chart theme (no test — registration glue)**
 
 Create `src/lib/charts/chartTheme.ts`:
+
 ```ts
 import {
 	Chart,
@@ -455,6 +464,7 @@ export const PALETTE = [
 ```
 
 - [ ] **Step 6: Commit**
+
 ```bash
 git add src/lib/charts/
 git commit -m "feat(manager): donut data reducer + chart.js theme"
@@ -469,6 +479,7 @@ git commit -m "feat(manager): donut data reducer + chart.js theme"
 - [ ] **Step 1: Implement component**
 
 Create `src/lib/components/charts/Waterfall.svelte`:
+
 ```svelte
 <script lang="ts">
 	import Card from '$lib/components/ios/Card.svelte';
@@ -509,6 +520,7 @@ Create `src/lib/components/charts/Waterfall.svelte`:
 - [ ] **Step 2: Write the test**
 
 Create `src/lib/components/charts/Waterfall.svelte.spec.ts`:
+
 ```ts
 import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
@@ -534,6 +546,7 @@ Run: `npm run test:unit -- --run src/lib/components/charts/Waterfall.svelte.spec
 Expected: PASS (2 tests).
 
 - [ ] **Step 4: Commit**
+
 ```bash
 git add src/lib/components/charts/Waterfall.svelte src/lib/components/charts/Waterfall.svelte.spec.ts
 git commit -m "feat(manager): sales-breakdown waterfall component"
@@ -548,6 +561,7 @@ git commit -m "feat(manager): sales-breakdown waterfall component"
 - [ ] **Step 1: Implement component**
 
 Create `src/lib/components/charts/Heatmap.svelte`:
+
 ```svelte
 <script lang="ts">
 	import Card from '$lib/components/ios/Card.svelte';
@@ -595,6 +609,7 @@ Create `src/lib/components/charts/Heatmap.svelte`:
 - [ ] **Step 2: Write the test**
 
 Create `src/lib/components/charts/Heatmap.svelte.spec.ts`:
+
 ```ts
 import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
@@ -616,6 +631,7 @@ Run: `npm run test:unit -- --run src/lib/components/charts/Heatmap.svelte.spec.t
 Expected: PASS (1 test).
 
 - [ ] **Step 4: Commit**
+
 ```bash
 git add src/lib/components/charts/Heatmap.svelte src/lib/components/charts/Heatmap.svelte.spec.ts
 git commit -m "feat(manager): day x hour heatmap component"
@@ -630,6 +646,7 @@ git commit -m "feat(manager): day x hour heatmap component"
 - [ ] **Step 1: Implement component**
 
 Create `src/lib/components/charts/SalesChart.svelte`:
+
 ```svelte
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
@@ -688,6 +705,7 @@ Create `src/lib/components/charts/SalesChart.svelte`:
 - [ ] **Step 2: Write the smoke test**
 
 Create `src/lib/components/charts/SalesChart.svelte.spec.ts`:
+
 ```ts
 import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
@@ -717,6 +735,7 @@ Run: `npm run test:unit -- --run src/lib/components/charts/SalesChart.svelte.spe
 Expected: PASS (2 tests). If Chart.js threw during mount, the effect/mount error would surface and the test fails — that is the smoke signal.
 
 - [ ] **Step 4: Commit**
+
 ```bash
 git add src/lib/components/charts/SalesChart.svelte src/lib/components/charts/SalesChart.svelte.spec.ts
 git commit -m "feat(manager): chart.js sales-by-day line chart"
@@ -731,6 +750,7 @@ git commit -m "feat(manager): chart.js sales-by-day line chart"
 - [ ] **Step 1: Implement component**
 
 Create `src/lib/components/charts/Donut.svelte`:
+
 ```svelte
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
@@ -780,6 +800,7 @@ Create `src/lib/components/charts/Donut.svelte`:
 - [ ] **Step 2: Write the smoke test**
 
 Create `src/lib/components/charts/Donut.svelte.spec.ts`:
+
 ```ts
 import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
@@ -809,6 +830,7 @@ Run: `npm run test:unit -- --run src/lib/components/charts/Donut.svelte.spec.ts`
 Expected: PASS (2 tests).
 
 - [ ] **Step 4: Commit**
+
 ```bash
 git add src/lib/components/charts/Donut.svelte src/lib/components/charts/Donut.svelte.spec.ts
 git commit -m "feat(manager): chart.js top-items donut"
@@ -825,6 +847,7 @@ git commit -m "feat(manager): chart.js top-items donut"
 - [ ] **Step 1: Replace the page**
 
 Replace the entire contents of `src/routes/(app)/+page.svelte` with:
+
 ```svelte
 <script lang="ts">
 	import NavBar from '$lib/components/ios/NavBar.svelte';
@@ -884,12 +907,7 @@ Replace the entire contents of `src/routes/(app)/+page.svelte` with:
 		<EmptyState title="Couldn’t load data" subtitle="Try again later." />
 	{:else if data && cur && prev}
 		<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-			{#each [
-				{ label: 'Net sales', val: baht(cur.net_sales), d: deltaPct(cur.net_sales, prev.net_sales) },
-				{ label: 'Orders', val: String(cur.orders), d: deltaPct(cur.orders, prev.orders) },
-				{ label: 'Items', val: String(cur.items), d: deltaPct(cur.items, prev.items) },
-				{ label: 'Avg ticket', val: baht(cur.avg_ticket), d: deltaPct(cur.avg_ticket, prev.avg_ticket) }
-			] as kpi (kpi.label)}
+			{#each [{ label: 'Net sales', val: baht(cur.net_sales), d: deltaPct(cur.net_sales, prev.net_sales) }, { label: 'Orders', val: String(cur.orders), d: deltaPct(cur.orders, prev.orders) }, { label: 'Items', val: String(cur.items), d: deltaPct(cur.items, prev.items) }, { label: 'Avg ticket', val: baht(cur.avg_ticket), d: deltaPct(cur.avg_ticket, prev.avg_ticket) }] as kpi (kpi.label)}
 				<Card>
 					<p class="text-sm text-[var(--ios-label-secondary)]">{kpi.label}</p>
 					<p class="mt-1 text-2xl font-bold text-[var(--ios-label)]">{kpi.val}</p>
@@ -899,7 +917,12 @@ Replace the entire contents of `src/routes/(app)/+page.svelte` with:
 		</div>
 
 		<div class="grid gap-4 md:grid-cols-2">
-			<Waterfall gross={cur.gross} discount={cur.discount} net={cur.net_sales} subsidy={cur.subsidy} />
+			<Waterfall
+				gross={cur.gross}
+				discount={cur.discount}
+				net={cur.net_sales}
+				subsidy={cur.subsidy}
+			/>
 			<Card>
 				<p class="mb-2 text-sm font-medium text-[var(--ios-label-secondary)]">Sales over time</p>
 				{#if data.salesByDay.length === 0}
@@ -935,7 +958,8 @@ Replace the entire contents of `src/routes/(app)/+page.svelte` with:
 								: ''}"
 						>
 							<span class="text-[var(--ios-label)]">{m.name}</span>
-							<span class="text-[var(--ios-label-secondary)]">{m.qty_sold} · {baht(m.revenue)}</span>
+							<span class="text-[var(--ios-label-secondary)]">{m.qty_sold} · {baht(m.revenue)}</span
+							>
 						</div>
 					{/each}
 				</Card>
@@ -944,7 +968,9 @@ Replace the entire contents of `src/routes/(app)/+page.svelte` with:
 
 		{#if data.subsidies.length > 0}
 			<div>
-				<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">Subsidy by program</p>
+				<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">
+					Subsidy by program
+				</p>
 				<Card padded={false}>
 					{#each data.subsidies as s, i (s.name)}
 						<div
@@ -969,6 +995,7 @@ Run: `npm run check`
 Expected: no errors in `+page.svelte`.
 
 - [ ] **Step 3: Commit**
+
 ```bash
 git add 'src/routes/(app)/+page.svelte'
 git commit -m "feat(manager): full report page (KPIs, charts, heatmap, waterfall, presets)"
@@ -983,6 +1010,7 @@ git commit -m "feat(manager): full report page (KPIs, charts, heatmap, waterfall
 - [ ] **Step 1: Create SideNav**
 
 Create `src/lib/components/ios/SideNav.svelte`:
+
 ```svelte
 <script lang="ts">
 	import { page } from '$app/state';
@@ -1022,7 +1050,9 @@ Create `src/lib/components/ios/SideNav.svelte`:
 	{#each groups as group (group.title)}
 		<div class="flex flex-col gap-0.5">
 			{#if group.title}
-				<p class="mb-1 px-2 text-xs font-medium tracking-wide text-[var(--ios-label-tertiary)] uppercase">
+				<p
+					class="mb-1 px-2 text-xs font-medium tracking-wide text-[var(--ios-label-tertiary)] uppercase"
+				>
 					{group.title}
 				</p>
 			{/if}
@@ -1045,6 +1075,7 @@ Create `src/lib/components/ios/SideNav.svelte`:
 - [ ] **Step 2: Make the shell responsive**
 
 Replace the contents of `src/routes/(app)/+layout.svelte` with:
+
 ```svelte
 <script lang="ts">
 	import BottomTabBar from '$lib/components/ios/BottomTabBar.svelte';
@@ -1076,6 +1107,7 @@ Run: `npm run check`
 Expected: no errors.
 
 - [ ] **Step 4: Commit**
+
 ```bash
 git add 'src/lib/components/ios/SideNav.svelte' 'src/routes/(app)/+layout.svelte'
 git commit -m "feat(manager): desktop sidebar + responsive shell"
@@ -1105,11 +1137,13 @@ Expected: build succeeds (confirms SSR safety — charts only touch the DOM in `
 - [ ] **Step 4: Manual viewport check**
 
 Run: `npm run dev`, then with the backend reachable (proxy → `http://100.86.43.70:8085`) and logged in:
+
 - Phone width (~390px): bottom tab bar present, no sidebar, single-column report, presets switch range, charts/heatmap render.
 - Desktop width (≥1024px): left sidebar present, no bottom bar, content centered + wide, KPIs in 4 columns, charts in 2-up grid.
-Expected: both viewports usable; switching presets refetches and updates every section.
+  Expected: both viewports usable; switching presets refetches and updates every section.
 
 - [ ] **Step 5: Final commit (if formatting changed anything)**
+
 ```bash
 git add -A
 git commit -m "chore(manager): format + verification pass" || echo "nothing to commit"

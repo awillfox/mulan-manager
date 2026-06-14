@@ -38,13 +38,13 @@ page to reach **function parity** with the Go page — keeping the iOS look.
 
 ## Backend endpoints consumed (existing)
 
-| Endpoint | Used for |
-|---|---|
-| `GET /api/dashboard/compare?from&to` | KPI grid + prev-period deltas + waterfall |
-| `GET /api/dashboard/sales-by-day?from&to` | Sales-by-day chart (Chart.js) |
-| `GET /api/dashboard/heatmap?from&to` | Day×hour heatmap (CSS grid) |
-| `GET /api/dashboard/top-menus?from&to` | Top menus list + donut (Chart.js) |
-| `GET /api/dashboard/subsidies?from&to` | Subsidies-by-program list |
+| Endpoint                                  | Used for                                  |
+| ----------------------------------------- | ----------------------------------------- |
+| `GET /api/dashboard/compare?from&to`      | KPI grid + prev-period deltas + waterfall |
+| `GET /api/dashboard/sales-by-day?from&to` | Sales-by-day chart (Chart.js)             |
+| `GET /api/dashboard/heatmap?from&to`      | Day×hour heatmap (CSS grid)               |
+| `GET /api/dashboard/top-menus?from&to`    | Top menus list + donut (Chart.js)         |
+| `GET /api/dashboard/subsidies?from&to`    | Subsidies-by-program list                 |
 
 (`GET /api/dashboard/` "today summary" is superseded by `/compare` with from=to=today.)
 

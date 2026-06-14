@@ -36,7 +36,9 @@
 	{#each groups as group (group.title)}
 		<div class="flex flex-col gap-0.5">
 			{#if group.title}
-				<p class="mb-1 px-2 text-xs font-medium tracking-wide text-[var(--ios-label-tertiary)] uppercase">
+				<p
+					class="mb-1 px-2 text-xs font-medium tracking-wide text-[var(--ios-label-tertiary)] uppercase"
+				>
 					{group.title}
 				</p>
 			{/if}

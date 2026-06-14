@@ -1,11 +1,5 @@
 import type { Range } from './range';
-import type {
-	CompareResult,
-	DayPoint,
-	HeatmapCell,
-	TopMenu,
-	SubsidyProgram
-} from './types';
+import type { CompareResult, DayPoint, HeatmapCell, TopMenu, SubsidyProgram } from './types';
 
 async function get<T>(path: string): Promise<T> {
 	const res = await fetch(path);

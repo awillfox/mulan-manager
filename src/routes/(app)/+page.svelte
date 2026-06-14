@@ -56,12 +56,7 @@
 		<EmptyState title="Couldn't load data" subtitle="Try again later." />
 	{:else if data && cur && prev}
 		<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-			{#each [
-				{ label: 'Net sales', val: baht(cur.net_sales), d: deltaPct(cur.net_sales, prev.net_sales) },
-				{ label: 'Orders', val: String(cur.orders), d: deltaPct(cur.orders, prev.orders) },
-				{ label: 'Items', val: String(cur.items), d: deltaPct(cur.items, prev.items) },
-				{ label: 'Avg ticket', val: baht(cur.avg_ticket), d: deltaPct(cur.avg_ticket, prev.avg_ticket) }
-			] as kpi (kpi.label)}
+			{#each [{ label: 'Net sales', val: baht(cur.net_sales), d: deltaPct(cur.net_sales, prev.net_sales) }, { label: 'Orders', val: String(cur.orders), d: deltaPct(cur.orders, prev.orders) }, { label: 'Items', val: String(cur.items), d: deltaPct(cur.items, prev.items) }, { label: 'Avg ticket', val: baht(cur.avg_ticket), d: deltaPct(cur.avg_ticket, prev.avg_ticket) }] as kpi (kpi.label)}
 				<Card>
 					<p class="text-sm text-[var(--ios-label-secondary)]">{kpi.label}</p>
 					<p class="mt-1 text-2xl font-bold text-[var(--ios-label)]">{kpi.val}</p>
@@ -71,7 +66,12 @@
 		</div>
 
 		<div class="grid gap-4 md:grid-cols-2">
-			<Waterfall gross={cur.gross} discount={cur.discount} net={cur.net_sales} subsidy={cur.subsidy} />
+			<Waterfall
+				gross={cur.gross}
+				discount={cur.discount}
+				net={cur.net_sales}
+				subsidy={cur.subsidy}
+			/>
 			<Card>
 				<p class="mb-2 text-sm font-medium text-[var(--ios-label-secondary)]">Sales over time</p>
 				{#if data.salesByDay.length === 0}
@@ -107,7 +107,8 @@
 								: ''}"
 						>
 							<span class="text-[var(--ios-label)]">{m.name}</span>
-							<span class="text-[var(--ios-label-secondary)]">{m.qty_sold} · {baht(m.revenue)}</span>
+							<span class="text-[var(--ios-label-secondary)]">{m.qty_sold} · {baht(m.revenue)}</span
+							>
 						</div>
 					{/each}
 				</Card>
@@ -116,7 +117,9 @@
 
 		{#if data.subsidies.length > 0}
 			<div>
-				<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">Subsidy by program</p>
+				<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">
+					Subsidy by program
+				</p>
 				<Card padded={false}>
 					{#each data.subsidies as s, i (s.name)}
 						<div
