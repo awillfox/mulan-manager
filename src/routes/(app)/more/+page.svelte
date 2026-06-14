@@ -19,6 +19,7 @@
 			title: 'Staff & Shop',
 			items: [
 				{ href: '/cashiers', label: 'Cashiers', icon: '⛁' },
+				{ href: '/drawer', label: 'Cash Drawer', icon: '💵' },
 				{ href: '/settings', label: 'Settings', icon: '⚙' }
 			]
 		}

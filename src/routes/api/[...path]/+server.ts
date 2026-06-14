@@ -16,6 +16,7 @@ const ALLOW = [
 	'options',
 	'members',
 	'cashiers',
+	'cash-drawer',
 	'settings'
 ];
 
