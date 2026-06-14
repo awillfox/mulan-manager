@@ -7,7 +7,8 @@
 	import { showToast } from '$lib/components/ios/toast.svelte';
 	import { baht } from '$lib/format';
 	import { presetRange, type Preset } from '$lib/dashboard/range';
-	import { listOrders, type OrderRow } from '$lib/api/reports';
+	import { listOrders, listAllOrders, type OrderRow } from '$lib/api/reports';
+	import { exportOrdersXlsx } from '$lib/export/ordersXlsx';
 
 	const PAGE = 100;
 
@@ -68,6 +69,22 @@
 		expanded = expanded === code ? null : code;
 	}
 
+	let exporting = $state(false);
+
+	async function exportXlsx() {
+		exporting = true;
+		try {
+			const { from, to } = range();
+			const all = await listAllOrders({ from, to, status: status || undefined });
+			const name = `orders-${from}-to-${to}${status ? '-' + status : ''}.xlsx`;
+			await exportOrdersXlsx(all, name);
+		} catch (e) {
+			showToast((e as Error).message, 'error');
+		} finally {
+			exporting = false;
+		}
+	}
+
 	const dt = (iso: string) =>
 		new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -117,7 +134,16 @@
 	{:else if orders.length === 0}
 		<EmptyState title="No orders" subtitle="No orders in this range." />
 	{:else}
-		<p class="px-1 text-xs text-[var(--ios-label-secondary)]">{orders.length} of {total}</p>
+		<div class="flex items-center justify-between px-1">
+			<p class="text-xs text-[var(--ios-label-secondary)]">{orders.length} of {total}</p>
+			<button
+				class="text-sm font-medium text-[var(--ios-blue)] disabled:opacity-50"
+				disabled={exporting || orders.length === 0}
+				onclick={exportXlsx}
+			>
+				{exporting ? 'Exporting…' : 'Export .xlsx'}
+			</button>
+		</div>
 		<Card padded={false}>
 			<div class="overflow-x-auto">
 				<table class="w-full min-w-[680px] text-sm">
