@@ -15,6 +15,7 @@ const ALLOW = [
 	'option-groups',
 	'options',
 	'members',
+	'reports',
 	'cashiers',
 	'cash-drawer',
 	'settings'

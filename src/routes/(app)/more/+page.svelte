@@ -11,6 +11,7 @@
 		{
 			title: 'Catalog',
 			items: [
+				{ href: '/orders', label: 'Orders', icon: '🧾' },
 				{ href: '/option-groups', label: 'Option Groups', icon: '⌥' },
 				{ href: '/discounts', label: 'Discounts', icon: '％' }
 			]

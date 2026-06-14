@@ -7,7 +7,8 @@
 			items: [
 				{ href: '/', label: 'Dashboard', icon: '📊' },
 				{ href: '/menu', label: 'Menu', icon: '☕' },
-				{ href: '/members', label: 'Members', icon: '👤' }
+				{ href: '/members', label: 'Members', icon: '👤' },
+				{ href: '/orders', label: 'Orders', icon: '🧾' }
 			]
 		},
 		{
