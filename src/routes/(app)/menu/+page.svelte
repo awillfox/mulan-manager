@@ -40,6 +40,7 @@
 	let fPrice = $state('');
 	let fCat = $state<number | null>(null);
 	let fActive = $state(true);
+	let fFav = $state(false);
 	let baseRows = $state<{ name: string; price: string }[]>([]);
 	let groupEntries = $state<GroupEntry[]>([]);
 	let saving = $state(false);
@@ -76,6 +77,7 @@
 		fPrice = '';
 		fCat = null;
 		fActive = true;
+		fFav = false;
 		baseRows = [];
 		groupEntries = [];
 		sheetOpen = true;
@@ -87,6 +89,7 @@
 		fPrice = String(m.price);
 		fCat = m.category_id;
 		fActive = m.active;
+		fFav = m.favourite;
 		baseRows = m.base_options.map((b) => ({ name: b.name, price: String(b.price) }));
 		groupEntries = m.option_groups.map((g): GroupEntry => {
 			const options: OptionRow[] = g.options.map((o) => ({ name: o.name, delta: String(o.price_delta) }));
@@ -178,7 +181,8 @@
 				name: fName.trim(),
 				price,
 				category_id: fCat,
-				vfd_name: fVfd.trim().slice(0, 20)
+				vfd_name: fVfd.trim().slice(0, 20),
+				favourite: fFav
 			};
 			if (id == null) {
 				const m = await createMenu(input);
@@ -254,7 +258,9 @@
 				<Card padded={false}>
 					{#each section.items as m, i (m.id)}
 						<ListRow divider={i < section.items.length - 1} onclick={() => openEdit(m)}>
-							<span class="font-medium text-[var(--ios-label)]">{m.name}</span>
+							<span class="font-medium text-[var(--ios-label)]">
+								{#if m.favourite}<span class="text-[var(--ios-yellow,#ffcc00)]">★</span>{/if}{m.name}
+							</span>
 							{#snippet trailing()}
 								<div class="flex items-center gap-3">
 									<span class="text-[var(--ios-label-secondary)]">{baht(m.price)}</span>
@@ -312,6 +318,7 @@
 			</select>
 		</div>
 		<Card><Toggle label="Active" bind:checked={fActive} /></Card>
+		<Card><Toggle label="★ Favourite (pinned under All at POS)" bind:checked={fFav} /></Card>
 
 		<!-- Base options -->
 		<div>

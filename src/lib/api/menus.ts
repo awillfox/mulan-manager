@@ -22,6 +22,7 @@ export interface Menu {
 	category_id: number | null;
 	vfd_name: string;
 	active: boolean;
+	favourite: boolean;
 	option_groups: MenuGroup[];
 	base_options: BaseOption[];
 }
@@ -30,6 +31,7 @@ export interface MenuInput {
 	price: number;
 	category_id: number | null;
 	vfd_name: string;
+	favourite: boolean;
 }
 
 async function j<T>(res: Response): Promise<T> {
