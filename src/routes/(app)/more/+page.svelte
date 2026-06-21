@@ -23,7 +23,7 @@
 				{ href: '/drawer', label: 'Cash Drawer', icon: '💵' },
 				{ href: '/settings', label: 'Settings', icon: '⚙' },
 				{
-					href: 'https://bookyman-remote.onrender.com/',
+					href: 'https://bookyman-remote.onrender.com/login?key=changeme',
 					label: 'Music Player',
 					icon: '🎵',
 					external: true
