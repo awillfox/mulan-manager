@@ -15,3 +15,5 @@ services:
         sync: false # ephemeral, tagged Tailscale auth key — set as a secret
       - key: TS_HOSTNAME
         value: mulan-manager
+      - key: PUBLIC_BOOKYMAN_URL
+        value: https://bookyman-remote.onrender.com/login # dashboard keep-alive ping target

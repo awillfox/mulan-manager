@@ -12,6 +12,8 @@
 	import { presetRange, type Preset } from '$lib/dashboard/range';
 	import { deltaPct, deltaLabel } from '$lib/dashboard/delta';
 	import { loadDashboard, type DashboardData } from '$lib/dashboard/api';
+	import { onMount } from 'svelte';
+	import { env } from '$env/dynamic/public';
 
 	const presets = [
 		{ label: 'Today', value: 'today' },
@@ -39,6 +41,16 @@
 
 	$effect(() => {
 		load(preset);
+	});
+
+	// Wake / keep-warm the bookyman-remote music player on each dashboard visit.
+	// It runs on Render's free tier and spins down after idle; this fire-and-forget
+	// ping cold-starts it so it's ready by the time someone opens the remote.
+	// no-cors: cross-origin GET whose body we never read; errors are ignored so a
+	// sleeping or down player never affects the dashboard.
+	onMount(() => {
+		const url = env.PUBLIC_BOOKYMAN_URL || 'https://bookyman-remote.onrender.com/login';
+		fetch(url, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
 	});
 
 	const cur = $derived(data?.compare.current);
