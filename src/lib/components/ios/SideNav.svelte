@@ -23,7 +23,13 @@
 			items: [
 				{ href: '/cashiers', label: 'Cashiers', icon: '⛁' },
 				{ href: '/drawer', label: 'Cash Drawer', icon: '💵' },
-				{ href: '/settings', label: 'Settings', icon: '⚙' }
+				{ href: '/settings', label: 'Settings', icon: '⚙' },
+				{
+					href: 'https://bookyman-remote.onrender.com/login?key=changeme',
+					label: 'Music Player',
+					icon: '🎵',
+					external: true
+				}
 			]
 		}
 	];
@@ -47,6 +53,7 @@
 				{@const active = page.url.pathname === item.href}
 				<a
 					href={item.href}
+					rel={item.external ? 'noreferrer' : undefined}
 					class="flex items-center gap-3 rounded-xl px-2 py-2 text-sm font-medium {active
 						? 'bg-[var(--ios-fill)] text-[var(--ios-blue)]'
 						: 'text-[var(--ios-label)]'}"
