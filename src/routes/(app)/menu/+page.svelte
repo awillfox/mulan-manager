@@ -84,12 +84,12 @@
 	}
 	function openEdit(m: Menu) {
 		editingId = m.id;
-		fName = m.name;
-		fVfd = m.vfd_name;
-		fPrice = String(m.price);
-		fCat = m.category_id;
-		fActive = m.active;
-		fFav = m.favourite;
+		fName = m.name ?? '';
+		fVfd = m.vfd_name ?? '';
+		fPrice = String(m.price ?? '');
+		fCat = m.category_id ?? null;
+		fActive = m.active ?? true;
+		fFav = m.favourite ?? false;
 		baseRows = m.base_options.map((b) => ({ name: b.name, price: String(b.price) }));
 		groupEntries = m.option_groups.map((g): GroupEntry => {
 			const options: OptionRow[] = g.options.map((o) => ({ name: o.name, delta: String(o.price_delta) }));
