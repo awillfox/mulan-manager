@@ -46,6 +46,13 @@
 	let saving = $state(false);
 
 	const baht = (n: number) => '฿' + n.toFixed(2);
+	// When a menu has base options the list price is ignored — show up to the
+	// first 4 base prices (configured order), "…" if more, else the plain price.
+	const priceLabel = (m: Menu) => {
+		if (!m.base_options.length) return baht(m.price);
+		const shown = m.base_options.slice(0, 4).map((b) => baht(b.price));
+		return shown.join(' / ') + (m.base_options.length > 4 ? ' …' : '');
+	};
 	const catName = (id: number | null) => cats.find((c) => c.id === id)?.name ?? 'Uncategorized';
 	const hasBase = $derived(baseRows.some((r) => r.name.trim()));
 
@@ -263,7 +270,7 @@
 							</span>
 							{#snippet trailing()}
 								<div class="flex items-center gap-3">
-									<span class="text-[var(--ios-label-secondary)]">{baht(m.price)}</span>
+									<span class="text-[var(--ios-label-secondary)]">{priceLabel(m)}</span>
 									<button
 										type="button"
 										onclick={(e) => {
