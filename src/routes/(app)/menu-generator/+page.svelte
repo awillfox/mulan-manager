@@ -29,6 +29,7 @@
 	let previewUrl = $state('');
 	let generating = $state(false);
 	let blob = $state<Blob | null>(null);
+	let runToken = 0;
 
 	onMount(async () => {
 		try {
@@ -48,18 +49,21 @@
 
 	// Regenerate the preview (debounced) whenever the data or branding changes.
 	$effect(() => {
-		const doc = buildDocDefinition(sheet, { ...brand });
 		if (!hasItems) return;
+		const doc = buildDocDefinition(sheet, { ...brand });
 		generating = true;
 		const timer = setTimeout(async () => {
+			const myToken = ++runToken;
 			try {
 				const out = await generatePdf(doc);
+				if (myToken !== runToken) return;
 				previewUrl = out.dataUrl;
 				blob = out.blob;
 			} catch (e) {
+				if (myToken !== runToken) return;
 				showToast((e as Error).message, 'error');
 			} finally {
-				generating = false;
+				if (myToken === runToken) generating = false;
 			}
 		}, 400);
 		return () => clearTimeout(timer);

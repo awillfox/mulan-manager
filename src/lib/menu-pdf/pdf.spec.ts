@@ -14,7 +14,11 @@ function section(title: string, rows: number): SheetSection {
 	return {
 		title,
 		columns: [],
-		rows: Array.from({ length: rows }, (_, i) => ({ name: `${title}-${i}`, prices: [], single: 10 }))
+		rows: Array.from({ length: rows }, (_, i) => ({
+			name: `${title}-${i}`,
+			prices: [],
+			single: 10
+		}))
 	};
 }
 
@@ -60,5 +64,50 @@ describe('buildDocDefinition', () => {
 		const body = doc.content as unknown as Array<Record<string, unknown>>;
 		const texts = body.map((n) => n.text).filter((t) => typeof t === 'string');
 		expect(texts).toContain('TH Gallery & Café');
+	});
+});
+
+describe('buildDocDefinition – variant columns', () => {
+	type SectionBlock = {
+		stack: [{ text: string }, { table: { widths: unknown[]; body: unknown[][] } }];
+	};
+	type ColEntry = { stack: SectionBlock[] };
+
+	const variantSheet: MenuSheet = {
+		sections: [
+			{
+				title: 'Drinks',
+				columns: ['Hot', 'Iced'],
+				rows: [
+					{ name: 'Americano', prices: [75, 85], single: null },
+					{ name: 'Dirty Coffee', prices: [null, null], single: 110 }
+				]
+			}
+		]
+	};
+
+	const doc = buildDocDefinition(variantSheet, brand);
+	const contentArr = doc.content as unknown as Array<Record<string, unknown>>;
+	const colsNode = contentArr.find((n) => 'columns' in n) as { columns: ColEntry[] };
+	const allBlocks = [...colsNode.columns[0].stack, ...colsNode.columns[1].stack];
+	const block = allBlocks.find((b) => b.stack[0].text === 'DRINKS')!;
+	const { widths, body } = block.stack[1].table;
+
+	it('widths length equals columns.length + 1 (name col + one per variant)', () => {
+		expect(widths).toHaveLength(3);
+	});
+
+	it('every row (header + data rows) has length equal to columns.length + 1', () => {
+		// This guards the colSpan fallback row: it must pad with { text: '' } cells
+		// so its length still equals columns.length + 1, not 2.
+		for (const row of body) {
+			expect(row).toHaveLength(3);
+		}
+	});
+
+	it('header row variant cells contain the uppercased column names', () => {
+		const header = body[0] as Array<{ text: string }>;
+		expect(header[1].text).toBe('HOT');
+		expect(header[2].text).toBe('ICED');
 	});
 });
