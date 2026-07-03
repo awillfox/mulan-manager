@@ -10,7 +10,7 @@
 	import { listMenus, type Menu } from '$lib/api/menus';
 	import { listCategories, type Category } from '$lib/api/categories';
 	import { getSettings } from '$lib/api/settings';
-	import { buildMenuSheet, type Branding } from '$lib/menu-pdf/model';
+	import { buildMenuSheet, filterExcluded, type Branding } from '$lib/menu-pdf/model';
 	import { buildDocDefinition, generatePdf, formatBaht, columnLabel } from '$lib/menu-pdf/pdf';
 	import { buildMenuWorkbook } from '$lib/menu-pdf/xlsx';
 	import {
@@ -31,7 +31,8 @@
 		tagline: 'Since 2016',
 		subtitle: '',
 		hours: 'Open daily · 8am – 6pm',
-		footer: 'All prices in Thai Baht (฿)'
+		footer: 'All prices in Thai Baht (฿)',
+		background: '#f3ead8'
 	});
 
 	let previewUrl = $state('');
@@ -61,7 +62,17 @@
 	const effectiveSheet = $derived(applyOverrides(sheet, overrides));
 	const partials = $derived(partialRows(sheet));
 
-	function move(key: string, base: (number | null)[], from: number, to: number) {
+	// Generator-only: menu ids hidden from the PDF (never sent to the backend,
+	// not persisted). The Excel export deliberately ignores this.
+	let excluded = $state<Set<number>>(new Set());
+	function toggleExcluded(id: number) {
+		const next = new Set(excluded);
+		next.has(id) ? next.delete(id) : next.add(id);
+		excluded = next;
+	}
+	const pdfSheet = $derived(filterExcluded(effectiveSheet, excluded));
+
+	function move(key: number, base: (number | null)[], from: number, to: number) {
 		overrides = { ...overrides, [key]: movePrice(overrides[key] ?? base, from, to) };
 	}
 
@@ -73,7 +84,7 @@
 	}
 
 	// Drop the override for a row (back to its original placement / flat price).
-	function clearRow(key: string) {
+	function clearRow(key: number) {
 		const next = { ...overrides };
 		delete next[key];
 		overrides = next;
@@ -82,7 +93,7 @@
 	// Regenerate the preview (debounced) whenever the data, branding, or overrides change.
 	$effect(() => {
 		if (!hasItems) return;
-		const doc = buildDocDefinition(effectiveSheet, { ...brand });
+		const doc = buildDocDefinition(pdfSheet, { ...brand });
 		generating = true;
 		const timer = setTimeout(async () => {
 			const myToken = ++runToken;
@@ -152,6 +163,15 @@
 						bind:value={brand.footer}
 						placeholder="All prices in Thai Baht (฿)"
 					/>
+					<label class="flex items-center justify-between">
+						<span class="text-[var(--ios-label)]">Background</span>
+						<input
+							type="color"
+							bind:value={brand.background}
+							class="h-9 w-14 rounded-lg border border-[var(--ios-separator)] bg-transparent"
+							aria-label="PDF background color"
+						/>
+					</label>
 				</div>
 			</Card>
 		</div>
