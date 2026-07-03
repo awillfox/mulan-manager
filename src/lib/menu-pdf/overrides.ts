@@ -10,6 +10,7 @@ export interface PartialRow {
 	name: string;
 	columns: string[];
 	prices: (number | null)[];
+	single: number | null; // set for a flat-priced item sitting in a variant section
 }
 
 export function rowKey(sectionIndex: number, rowIndex: number): string {
@@ -20,21 +21,23 @@ function nonNullCount(prices: (number | null)[]): number {
 	return prices.filter((p) => p != null).length;
 }
 
-// Rows in a variant section that have at least one price but not every column
-// filled — the only rows whose columns are worth reassigning.
+// Rows in a variant section whose columns are worth reassigning: either some (but
+// not all) columns are filled, or it's a flat-priced item (single) not yet assigned
+// to any column.
 export function partialRows(sheet: MenuSheet): PartialRow[] {
 	const out: PartialRow[] = [];
 	sheet.sections.forEach((s, si) => {
 		if (s.columns.length === 0) return;
 		s.rows.forEach((r, ri) => {
 			const n = nonNullCount(r.prices);
-			if (n >= 1 && n < s.columns.length) {
+			if (n < s.columns.length && (n >= 1 || r.single != null)) {
 				out.push({
 					key: rowKey(si, ri),
 					sectionTitle: s.title,
 					name: r.name,
 					columns: s.columns,
-					prices: r.prices
+					prices: r.prices,
+					single: r.single
 				});
 			}
 		});

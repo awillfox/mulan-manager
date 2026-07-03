@@ -12,7 +12,13 @@
 	import { getSettings } from '$lib/api/settings';
 	import { buildMenuSheet, type Branding } from '$lib/menu-pdf/model';
 	import { buildDocDefinition, generatePdf, formatBaht } from '$lib/menu-pdf/pdf';
-	import { partialRows, applyOverrides, movePrice, type Overrides } from '$lib/menu-pdf/overrides';
+	import {
+		partialRows,
+		applyOverrides,
+		movePrice,
+		type Overrides,
+		type PartialRow
+	} from '$lib/menu-pdf/overrides';
 
 	let loading = $state(true);
 	let err = $state('');
@@ -56,6 +62,20 @@
 
 	function move(key: string, base: (number | null)[], from: number, to: number) {
 		overrides = { ...overrides, [key]: movePrice(overrides[key] ?? base, from, to) };
+	}
+
+	// Place a flat-priced item's single price into a chosen column.
+	function place(p: PartialRow, col: number, value: number) {
+		const arr: (number | null)[] = p.columns.map(() => null);
+		arr[col] = value;
+		overrides = { ...overrides, [p.key]: arr };
+	}
+
+	// Drop the override for a row (back to its original placement / flat price).
+	function clearRow(key: string) {
+		const next = { ...overrides };
+		delete next[key];
+		overrides = next;
 	}
 
 	// Regenerate the preview (debounced) whenever the data, branding, or overrides change.
@@ -125,8 +145,8 @@
 				</p>
 				<Card padded={false}>
 					<p class="px-3 pt-3 text-xs text-[var(--ios-label-tertiary)]">
-						These items don't fill every column. Use ‹ › to move a price into an empty
-						Hot/Iced/Frappé slot before generating.
+						These items don't fill every column. Use ‹ › to move a price between empty slots, or tap
+						a faint price to place a flat item into a column.
 					</p>
 					<div class="overflow-x-auto">
 						<table class="w-full text-sm">
@@ -141,12 +161,20 @@
 							<tbody>
 								{#each partials as p (p.key)}
 									{@const cur = overrides[p.key] ?? p.prices}
+									{@const single = p.single}
+									{@const unplaced = single != null && cur.every((x) => x == null)}
+									{@const hasOverride = p.key in overrides}
 									<tr class="border-t border-[var(--ios-separator)]">
 										<td class="px-3 py-2 text-[var(--ios-label)]">
 											{p.name}
-											<span class="block text-xs text-[var(--ios-label-tertiary)]"
-												>{p.sectionTitle}</span
-											>
+											<span class="block text-xs text-[var(--ios-label-tertiary)]">
+												{p.sectionTitle}{#if hasOverride}
+													· <button
+														type="button"
+														class="text-[var(--ios-blue)]"
+														onclick={() => clearRow(p.key)}>Reset</button
+													>{/if}
+											</span>
 										</td>
 										{#each p.columns as col, ci (col)}
 											{@const v = cur[ci]}
@@ -172,6 +200,13 @@
 															>
 														{/if}
 													</div>
+												{:else if unplaced && single != null}
+													<button
+														type="button"
+														class="rounded px-1.5 py-1 text-xs text-[var(--ios-label-tertiary)] underline decoration-dotted active:bg-[var(--ios-fill)]"
+														aria-label={`Place ${p.name} price in ${col}`}
+														onclick={() => place(p, ci, single)}>{formatBaht(single)}</button
+													>
 												{:else}
 													<span class="text-[var(--ios-label-tertiary)]">·</span>
 												{/if}

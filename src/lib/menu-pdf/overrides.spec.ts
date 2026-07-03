@@ -10,7 +10,7 @@ const sheet: MenuSheet = {
 			rows: [
 				{ name: 'Espresso', prices: [75, 90, 105], single: null }, // fully assigned
 				{ name: 'Latte', prices: [80, 95, null], single: null }, // partial (2 of 3)
-				{ name: 'Dirty Coffee', prices: [null, null, null], single: 110 } // single-price fallback
+				{ name: 'Flat Coffee', prices: [null, null, null], single: 110 } // single-price fallback
 			]
 		},
 		{
@@ -29,14 +29,22 @@ const sheet: MenuSheet = {
 };
 
 describe('partialRows', () => {
-	it('returns only variant rows with some but not all columns filled', () => {
+	it('includes partial variant rows and flat-priced items in a variant section', () => {
 		const rows = partialRows(sheet);
-		expect(rows.map((r) => r.name)).toEqual(['Latte', 'Blue Raspberry']);
+		// Latte (2 of 3), Flat Coffee (flat price in a variant section), Blue Raspberry (1 of 3).
+		// Espresso (fully assigned) and Pancake (non-variant section) are excluded.
+		expect(rows.map((r) => r.name)).toEqual(['Latte', 'Flat Coffee', 'Blue Raspberry']);
 	});
 	it('keys rows by section and row index', () => {
 		const rows = partialRows(sheet);
 		expect(rows[0].key).toBe(rowKey(0, 1)); // Coffee, Latte
-		expect(rows[1].key).toBe(rowKey(1, 0)); // Italian Soda, Blue Raspberry
+		expect(rows[1].key).toBe(rowKey(0, 2)); // Coffee, Flat Coffee
+		expect(rows[2].key).toBe(rowKey(1, 0)); // Italian Soda, Blue Raspberry
+	});
+	it('carries the flat single price for an unassigned item', () => {
+		const dirty = partialRows(sheet).find((r) => r.name === 'Flat Coffee')!;
+		expect(dirty.prices).toEqual([null, null, null]);
+		expect(dirty.single).toBe(110);
 	});
 });
 

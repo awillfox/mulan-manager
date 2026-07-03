@@ -109,13 +109,13 @@ describe('buildMenuSheet', () => {
 					category_id: 10,
 					base_options: [{ name: 'Hot', price: 75 }]
 				}),
-				menu({ id: 2, name: 'Dirty Coffee', price: 110, category_id: 10, base_options: [] })
+				menu({ id: 2, name: 'Flat Coffee', price: 110, category_id: 10, base_options: [] })
 			],
 			cats
 		);
 		const coffee = sheet.sections[0];
 		expect(coffee.columns).toEqual(['Hot']);
-		expect(coffee.rows[1]).toEqual({ name: 'Dirty Coffee', prices: [null], single: 110 });
+		expect(coffee.rows[1]).toEqual({ name: 'Flat Coffee', prices: [null], single: 110 });
 	});
 
 	it('shares one global column set across sections so variants align', () => {

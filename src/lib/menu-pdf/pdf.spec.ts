@@ -72,7 +72,7 @@ describe('buildDocDefinition – variant columns', () => {
 				columns: ['Hot', 'Iced'],
 				rows: [
 					{ name: 'Americano', prices: [75, 85], single: null },
-					{ name: 'Dirty Coffee', prices: [null, null], single: 110 }
+					{ name: 'Flat Coffee', prices: [null, null], single: 110 }
 				]
 			}
 		]
