@@ -10,6 +10,7 @@ export interface Branding {
 }
 
 export interface SheetRow {
+	id: number;
 	name: string;
 	prices: (number | null)[]; // aligned to SheetSection.columns; [] when columns is empty
 	single: number | null; // used when the row has no per-column prices
@@ -68,22 +69,36 @@ function buildSection(title: string, items: Menu[], globalColumns: string[]): Sh
 	// A section is a "variant section" if any item has base options; those use the
 	// shared global columns so they align. Sections with no variant items stay a
 	// plain name/price list.
-	const hasVariants = items.some((m) => m.base_options.length > 0);
+	const ordered = [...items].sort(
+		(a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)
+	);
+	const hasVariants = ordered.some((m) => m.base_options.length > 0);
 	if (!hasVariants) {
 		return {
 			title,
 			columns: [],
-			rows: items.map((m) => ({ name: m.name, prices: [], single: m.price }))
+			rows: ordered.map((m) => ({ id: m.id, name: m.name, prices: [], single: m.price }))
 		};
 	}
 
 	const columns = globalColumns;
-	const rows: SheetRow[] = items.map((m) => {
+	const rows: SheetRow[] = ordered.map((m) => {
 		const priceByName = new Map(m.base_options.map((b) => [b.name, b.price]));
 		const prices = columns.map((c) => (priceByName.has(c) ? priceByName.get(c)! : null));
 		const single = m.base_options.length === 0 ? m.price : null;
-		return { name: m.name, prices, single };
+		return { id: m.id, name: m.name, prices, single };
 	});
 
 	return { title, columns, rows };
+}
+
+// Generator-only: drop excluded menu ids from a sheet and prune any section that
+// ends up empty. Used for the PDF only; the Excel export keeps the full sheet.
+export function filterExcluded(sheet: MenuSheet, excluded: Set<number>): MenuSheet {
+	if (excluded.size === 0) return sheet;
+	return {
+		sections: sheet.sections
+			.map((s) => ({ ...s, rows: s.rows.filter((r) => !excluded.has(r.id)) }))
+			.filter((s) => s.rows.length > 0)
+	};
 }

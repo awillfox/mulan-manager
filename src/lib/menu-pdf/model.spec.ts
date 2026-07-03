@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMenuSheet } from './model';
+import { buildMenuSheet, filterExcluded } from './model';
 import type { Menu } from '$lib/api/menus';
 import type { Category } from '$lib/api/categories';
 
@@ -12,6 +12,7 @@ function menu(p: Partial<Menu>): Menu {
 		vfd_name: '',
 		active: true,
 		favourite: false,
+		sort_order: 0,
 		option_groups: [],
 		base_options: [],
 		...p
@@ -86,8 +87,13 @@ describe('buildMenuSheet', () => {
 		);
 		const coffee = sheet.sections[0];
 		expect(coffee.columns).toEqual(['Hot', 'Iced', 'Frappé']);
-		expect(coffee.rows[0]).toEqual({ name: 'Americano', prices: [75, 85, null], single: null });
-		expect(coffee.rows[1]).toEqual({ name: 'Espresso', prices: [75, 90, 105], single: null });
+		expect(coffee.rows[0]).toEqual({
+			id: 1,
+			name: 'Americano',
+			prices: [75, 85, null],
+			single: null
+		});
+		expect(coffee.rows[1]).toEqual({ id: 2, name: 'Espresso', prices: [75, 90, 105], single: null });
 	});
 
 	it('renders a plain single-price section when no item has base_options', () => {
@@ -97,7 +103,7 @@ describe('buildMenuSheet', () => {
 		);
 		const food = sheet.sections[0];
 		expect(food.columns).toEqual([]);
-		expect(food.rows[0]).toEqual({ name: 'Pancake', prices: [], single: 80 });
+		expect(food.rows[0]).toEqual({ id: 1, name: 'Pancake', prices: [], single: 80 });
 	});
 
 	it('keeps a single price for an item with no variants inside a variant section', () => {
@@ -115,7 +121,7 @@ describe('buildMenuSheet', () => {
 		);
 		const coffee = sheet.sections[0];
 		expect(coffee.columns).toEqual(['Hot']);
-		expect(coffee.rows[1]).toEqual({ name: 'Flat Coffee', prices: [null], single: 110 });
+		expect(coffee.rows[1]).toEqual({ id: 2, name: 'Flat Coffee', prices: [null], single: 110 });
 	});
 
 	it('shares one global column set across sections so variants align', () => {
@@ -149,9 +155,47 @@ describe('buildMenuSheet', () => {
 		const italianSoda = sheet.sections.find((s) => s.title === 'Italian Soda')!;
 		expect(italianSoda.columns).toEqual(['Hot', 'Iced', 'Frappé']);
 		expect(italianSoda.rows[0]).toEqual({
+			id: 2,
 			name: 'Blue Raspberry',
 			prices: [null, 75, null],
 			single: null
 		});
+	});
+});
+
+describe('buildMenuSheet ordering', () => {
+	it('orders items within a category by (sort_order, name)', () => {
+		const sheet = buildMenuSheet(
+			[
+				menu({ id: 1, name: 'Zebra', category_id: 20, sort_order: 0 }),
+				menu({ id: 2, name: 'Apple', category_id: 20, sort_order: 0 }),
+				menu({ id: 3, name: 'First', category_id: 20, sort_order: 1 })
+			],
+			cats
+		);
+		const food = sheet.sections.find((s) => s.title === 'Food')!;
+		// sort_order 0 ties break by name (Apple, Zebra); sort_order 1 (First) last.
+		expect(food.rows.map((r) => r.name)).toEqual(['Apple', 'Zebra', 'First']);
+	});
+
+	it('tags each row with its menu id', () => {
+		const sheet = buildMenuSheet([menu({ id: 42, name: 'X', category_id: 20 })], cats);
+		expect(sheet.sections.find((s) => s.title === 'Food')!.rows[0].id).toBe(42);
+	});
+});
+
+describe('filterExcluded', () => {
+	it('drops excluded rows and prunes emptied sections', () => {
+		const sheet = buildMenuSheet(
+			[
+				menu({ id: 1, name: 'Keep', category_id: 20 }),
+				menu({ id: 2, name: 'Drop', category_id: 20 }),
+				menu({ id: 3, name: 'Lonely', category_id: 10 })
+			],
+			cats
+		);
+		const out = filterExcluded(sheet, new Set([2, 3]));
+		expect(out.sections.map((s) => s.title)).toEqual(['Food']);
+		expect(out.sections[0].rows.map((r) => r.name)).toEqual(['Keep']);
 	});
 });
