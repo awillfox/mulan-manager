@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { partialRows, movePrice, applyOverrides, rowKey, type Overrides } from './overrides';
+import { partialRows, movePrice, applyOverrides, type Overrides } from './overrides';
 import type { MenuSheet } from './model';
 
 const sheet: MenuSheet = {
@@ -8,38 +8,30 @@ const sheet: MenuSheet = {
 			title: 'Coffee',
 			columns: ['Hot', 'Iced', 'Frappé'],
 			rows: [
-				{ name: 'Espresso', prices: [75, 90, 105], single: null }, // fully assigned
-				{ name: 'Latte', prices: [80, 95, null], single: null }, // partial (2 of 3)
-				{ name: 'Flat Coffee', prices: [null, null, null], single: 110 } // single-price fallback
+				{ id: 1, name: 'Espresso', prices: [75, 90, 105], single: null },
+				{ id: 2, name: 'Latte', prices: [80, 95, null], single: null },
+				{ id: 3, name: 'Flat Coffee', prices: [null, null, null], single: 110 }
 			]
 		},
 		{
 			title: 'Italian Soda',
 			columns: ['Hot', 'Iced', 'Frappé'],
-			rows: [
-				{ name: 'Blue Raspberry', prices: [null, 75, null], single: null } // partial (1 of 3)
-			]
+			rows: [{ id: 4, name: 'Blue Raspberry', prices: [null, 75, null], single: null }]
 		},
 		{
 			title: 'Food',
 			columns: [],
-			rows: [{ name: 'Pancake', prices: [], single: 80 }] // non-variant section
+			rows: [{ id: 5, name: 'Pancake', prices: [], single: 80 }]
 		}
 	]
 };
 
 describe('partialRows', () => {
 	it('includes partial variant rows and flat-priced items in a variant section', () => {
-		const rows = partialRows(sheet);
-		// Latte (2 of 3), Flat Coffee (flat price in a variant section), Blue Raspberry (1 of 3).
-		// Espresso (fully assigned) and Pancake (non-variant section) are excluded.
-		expect(rows.map((r) => r.name)).toEqual(['Latte', 'Flat Coffee', 'Blue Raspberry']);
+		expect(partialRows(sheet).map((r) => r.name)).toEqual(['Latte', 'Flat Coffee', 'Blue Raspberry']);
 	});
-	it('keys rows by section and row index', () => {
-		const rows = partialRows(sheet);
-		expect(rows[0].key).toBe(rowKey(0, 1)); // Coffee, Latte
-		expect(rows[1].key).toBe(rowKey(0, 2)); // Coffee, Flat Coffee
-		expect(rows[2].key).toBe(rowKey(1, 0)); // Italian Soda, Blue Raspberry
+	it('keys rows by menu id', () => {
+		expect(partialRows(sheet).map((r) => r.key)).toEqual([2, 3, 4]);
 	});
 	it('carries the flat single price for an unassigned item', () => {
 		const dirty = partialRows(sheet).find((r) => r.name === 'Flat Coffee')!;
@@ -68,11 +60,10 @@ describe('movePrice', () => {
 });
 
 describe('applyOverrides', () => {
-	it('replaces prices only for keyed rows, leaving the rest untouched', () => {
-		const overrides: Overrides = { [rowKey(1, 0)]: [75, null, null] };
+	it('replaces prices for the row with that menu id, leaving the rest untouched', () => {
+		const overrides: Overrides = { 4: [75, null, null] };
 		const result = applyOverrides(sheet, overrides);
 		expect(result.sections[1].rows[0].prices).toEqual([75, null, null]);
-		// unrelated rows unchanged
 		expect(result.sections[0].rows[0].prices).toEqual([75, 90, 105]);
 		expect(result.sections[2].rows[0].single).toBe(80);
 	});

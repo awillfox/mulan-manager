@@ -2,19 +2,15 @@ import type { MenuSheet } from './model';
 
 // Client-side, generator-only reassignment of a partially-filled variant row's
 // prices between the shared Hot/Iced/Frappé columns. Never touches the backend.
-export type Overrides = Record<string, (number | null)[]>;
+export type Overrides = Record<number, (number | null)[]>; // keyed by menu id
 
 export interface PartialRow {
-	key: string;
+	key: number; // menu id
 	sectionTitle: string;
 	name: string;
 	columns: string[];
 	prices: (number | null)[];
 	single: number | null; // set for a flat-priced item sitting in a variant section
-}
-
-export function rowKey(sectionIndex: number, rowIndex: number): string {
-	return `${sectionIndex}:${rowIndex}`;
 }
 
 function nonNullCount(prices: (number | null)[]): number {
@@ -26,13 +22,13 @@ function nonNullCount(prices: (number | null)[]): number {
 // to any column.
 export function partialRows(sheet: MenuSheet): PartialRow[] {
 	const out: PartialRow[] = [];
-	sheet.sections.forEach((s, si) => {
-		if (s.columns.length === 0) return;
-		s.rows.forEach((r, ri) => {
+	for (const s of sheet.sections) {
+		if (s.columns.length === 0) continue;
+		for (const r of s.rows) {
 			const n = nonNullCount(r.prices);
 			if (n < s.columns.length && (n >= 1 || r.single != null)) {
 				out.push({
-					key: rowKey(si, ri),
+					key: r.id,
 					sectionTitle: s.title,
 					name: r.name,
 					columns: s.columns,
@@ -40,8 +36,8 @@ export function partialRows(sheet: MenuSheet): PartialRow[] {
 					single: r.single
 				});
 			}
-		});
-	});
+		}
+	}
 	return out;
 }
 
@@ -56,13 +52,13 @@ export function movePrice(prices: (number | null)[], from: number, to: number): 
 	return next;
 }
 
-// Apply per-row price overrides (keyed by section/row index) to a sheet.
+// Apply per-row price overrides (keyed by menu id) to a sheet.
 export function applyOverrides(sheet: MenuSheet, overrides: Overrides): MenuSheet {
 	return {
-		sections: sheet.sections.map((s, si) => ({
+		sections: sheet.sections.map((s) => ({
 			...s,
-			rows: s.rows.map((r, ri) => {
-				const ov = overrides[rowKey(si, ri)];
+			rows: s.rows.map((r) => {
+				const ov = overrides[r.id];
 				return ov ? { ...r, prices: ov } : r;
 			})
 		}))
