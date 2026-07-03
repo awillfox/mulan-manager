@@ -73,6 +73,8 @@
 		excluded = next;
 	}
 	const pdfSheet = $derived(filterExcluded(effectiveSheet, excluded));
+	// Items exist, but every one is hidden from the PDF → nothing to render.
+	const pdfEmpty = $derived(hasItems && pdfSheet.sections.length === 0);
 
 	// Price/column cells for a row, looked up by menu id off the effective sheet.
 	const rowById = $derived(
@@ -124,7 +126,11 @@
 			} catch (err) {
 				const m = (err as Error).message;
 				showToast(m.includes('403') ? 'Owner only' : m, 'error');
-				menus = await listMenus(); // reconcile on failure
+				try {
+					menus = await listMenus(); // best-effort reconcile
+				} catch {
+					// keep the optimistic order; the next load reconciles
+				}
 			}
 		} finally {
 			committing = false;
@@ -152,6 +158,12 @@
 	// Regenerate the preview (debounced) whenever the data, branding, or overrides change.
 	$effect(() => {
 		if (!hasItems) return;
+		if (pdfEmpty) {
+			previewUrl = '';
+			blob = null;
+			generating = false;
+			return;
+		}
 		const doc = buildDocDefinition(pdfSheet, { ...brand });
 		generating = true;
 		const timer = setTimeout(async () => {
@@ -370,7 +382,13 @@
 			<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">Preview</p>
 			<Card padded={false}>
 				<div class="relative">
-					{#if previewUrl}
+					{#if pdfEmpty}
+						<div
+							class="flex h-[70vh] items-center justify-center px-6 text-center text-sm text-[var(--ios-label-secondary)]"
+						>
+							All items are hidden from the PDF. Show at least one item to preview or download.
+						</div>
+					{:else if previewUrl}
 						<iframe title="Menu preview" src={previewUrl} class="h-[70vh] w-full rounded-xl"
 						></iframe>
 					{:else}
