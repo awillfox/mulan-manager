@@ -12,7 +12,7 @@
 	import { listCategories, type Category } from '$lib/api/categories';
 	import { getSettings } from '$lib/api/settings';
 	import { buildMenuSheet, filterExcluded, type Branding } from '$lib/menu-pdf/model';
-	import { buildDocDefinition, generatePdf, formatBaht } from '$lib/menu-pdf/pdf';
+	import { buildDocDefinition, generatePdf, formatBaht, columnLabel } from '$lib/menu-pdf/pdf';
 	import { buildMenuWorkbook } from '$lib/menu-pdf/xlsx';
 	import {
 		partialRows,
@@ -122,7 +122,8 @@
 				await reorderMenus(g.key, ids);
 				menus = await listMenus();
 			} catch (err) {
-				showToast((err as Error).message, 'error');
+				const m = (err as Error).message;
+				showToast(m.includes('403') ? 'Owner only' : m, 'error');
 				menus = await listMenus(); // reconcile on failure
 			}
 		} finally {
@@ -243,11 +244,27 @@
 					or tap a faint price to place a flat item into a column.
 				</p>
 				{#each groups as g, gi (g.key ?? 'other')}
+					{@const cols =
+						g.items.map((m) => rowById.get(m.id)?.columns ?? []).find((c) => c.length > 0) ?? []}
 					<p
 						class="px-3 pt-3 pb-1 text-xs font-semibold tracking-wide text-[var(--ios-label-tertiary)]"
 					>
 						{g.title.toUpperCase()}
 					</p>
+					{#if cols.length > 0}
+						<div
+							class="flex items-center gap-2 px-3 pb-1 text-[10px] tracking-wide text-[var(--ios-label-tertiary)] uppercase"
+						>
+							<span class="invisible px-1 text-lg select-none" aria-hidden="true">≡</span>
+							<span class="flex-1"></span>
+							<div class="flex items-center gap-1">
+								{#each cols as c (c)}
+									<span class="w-14 text-right">{columnLabel(c)}</span>
+								{/each}
+							</div>
+							<span class="h-8 w-8"></span>
+						</div>
+					{/if}
 					<ul
 						class="divide-y divide-[var(--ios-separator)]"
 						use:dndzone={{
