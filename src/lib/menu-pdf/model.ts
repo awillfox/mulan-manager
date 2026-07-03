@@ -30,6 +30,20 @@ const OTHER = 'Other';
 export function buildMenuSheet(menus: Menu[], categories: Category[]): MenuSheet {
 	const active = menus.filter((m) => m.active);
 
+	// One global set of variant columns across the whole menu (first-appearance
+	// order, e.g. Hot/Iced/Frappé) so the same variant lines up in the same column
+	// in every section — a category serving only Iced still shows it in the middle.
+	const globalColumns: string[] = [];
+	const seen = new Set<string>();
+	for (const m of active) {
+		for (const b of m.base_options) {
+			if (!seen.has(b.name)) {
+				seen.add(b.name);
+				globalColumns.push(b.name);
+			}
+		}
+	}
+
 	const byCat = new Map<number | null, Menu[]>();
 	for (const m of active) {
 		const key = m.category_id ?? null;
@@ -41,7 +55,7 @@ export function buildMenuSheet(menus: Menu[], categories: Category[]): MenuSheet
 	const sections: SheetSection[] = [];
 	const emit = (key: number | null, title: string) => {
 		const items = byCat.get(key);
-		if (items && items.length > 0) sections.push(buildSection(title, items));
+		if (items && items.length > 0) sections.push(buildSection(title, items, globalColumns));
 	};
 
 	for (const c of categories) emit(c.id, c.name);
@@ -50,22 +64,21 @@ export function buildMenuSheet(menus: Menu[], categories: Category[]): MenuSheet
 	return { sections };
 }
 
-function buildSection(title: string, items: Menu[]): SheetSection {
-	const columns: string[] = [];
-	const seen = new Set<string>();
-	for (const m of items) {
-		for (const b of m.base_options) {
-			if (!seen.has(b.name)) {
-				seen.add(b.name);
-				columns.push(b.name);
-			}
-		}
+function buildSection(title: string, items: Menu[], globalColumns: string[]): SheetSection {
+	// A section is a "variant section" if any item has base options; those use the
+	// shared global columns so they align. Sections with no variant items stay a
+	// plain name/price list.
+	const hasVariants = items.some((m) => m.base_options.length > 0);
+	if (!hasVariants) {
+		return {
+			title,
+			columns: [],
+			rows: items.map((m) => ({ name: m.name, prices: [], single: m.price }))
+		};
 	}
 
+	const columns = globalColumns;
 	const rows: SheetRow[] = items.map((m) => {
-		if (columns.length === 0) {
-			return { name: m.name, prices: [], single: m.price };
-		}
 		const priceByName = new Map(m.base_options.map((b) => [b.name, b.price]));
 		const prices = columns.map((c) => (priceByName.has(c) ? priceByName.get(c)! : null));
 		const single = m.base_options.length === 0 ? m.price : null;

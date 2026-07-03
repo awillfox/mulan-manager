@@ -117,4 +117,41 @@ describe('buildMenuSheet', () => {
 		expect(coffee.columns).toEqual(['Hot']);
 		expect(coffee.rows[1]).toEqual({ name: 'Dirty Coffee', prices: [null], single: 110 });
 	});
+
+	it('shares one global column set across sections so variants align', () => {
+		const soda: Category[] = [
+			{ id: 10, name: 'Coffee' },
+			{ id: 40, name: 'Italian Soda' }
+		];
+		const sheet = buildMenuSheet(
+			[
+				menu({
+					id: 1,
+					name: 'Espresso',
+					category_id: 10,
+					base_options: [
+						{ name: 'Hot', price: 75 },
+						{ name: 'Iced', price: 90 },
+						{ name: 'Frappé', price: 105 }
+					]
+				}),
+				// Italian Soda only serves Iced — it should still use the full
+				// Hot/Iced/Frappé grid, with the Iced price in the middle column.
+				menu({
+					id: 2,
+					name: 'Blue Raspberry',
+					category_id: 40,
+					base_options: [{ name: 'Iced', price: 75 }]
+				})
+			],
+			soda
+		);
+		const italianSoda = sheet.sections.find((s) => s.title === 'Italian Soda')!;
+		expect(italianSoda.columns).toEqual(['Hot', 'Iced', 'Frappé']);
+		expect(italianSoda.rows[0]).toEqual({
+			name: 'Blue Raspberry',
+			prices: [null, 75, null],
+			single: null
+		});
+	});
 });
