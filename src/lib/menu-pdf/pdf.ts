@@ -11,6 +11,12 @@ export function formatBaht(n: number): string {
 	return Number.isInteger(n) ? `฿${n}` : `฿${n.toFixed(2)}`;
 }
 
+// Display-only relabeling of variant column names (the backend stores plain ASCII).
+const COLUMN_LABELS: Record<string, string> = { Frappe: 'Frappé' };
+export function columnLabel(name: string): string {
+	return COLUMN_LABELS[name] ?? name;
+}
+
 // Keep a category header with at least this many items on the same page; if
 // they don't fit, the whole (unbreakable) head is moved to the next page.
 const MIN_KEEP_ROWS = 3;
@@ -52,7 +58,7 @@ function sectionContent(s: SheetSection): Content[] {
 		? [
 				{ text: '' },
 				...s.columns.map((c) => ({
-					text: c.toUpperCase(),
+					text: columnLabel(c).toUpperCase(),
 					fontSize: 8,
 					alignment: 'right' as const,
 					characterSpacing: 1

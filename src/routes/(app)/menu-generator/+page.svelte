@@ -11,7 +11,7 @@
 	import { listCategories, type Category } from '$lib/api/categories';
 	import { getSettings } from '$lib/api/settings';
 	import { buildMenuSheet, type Branding } from '$lib/menu-pdf/model';
-	import { buildDocDefinition, generatePdf, formatBaht } from '$lib/menu-pdf/pdf';
+	import { buildDocDefinition, generatePdf, formatBaht, columnLabel } from '$lib/menu-pdf/pdf';
 	import {
 		partialRows,
 		applyOverrides,
@@ -154,7 +154,8 @@
 								<tr class="text-[var(--ios-label-tertiary)]">
 									<th class="px-3 py-2 text-left font-medium">Item</th>
 									{#each partials[0].columns as c (c)}
-										<th class="px-2 py-2 text-center font-medium">{c.toUpperCase()}</th>
+										<th class="px-2 py-2 text-center font-medium">{columnLabel(c).toUpperCase()}</th
+										>
 									{/each}
 								</tr>
 							</thead>

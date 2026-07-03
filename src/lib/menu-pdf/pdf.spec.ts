@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatBaht, buildDocDefinition } from './pdf';
+import { formatBaht, buildDocDefinition, columnLabel } from './pdf';
 import type { MenuSheet, SheetSection, Branding } from './model';
 
 const brand: Branding = {
@@ -37,6 +37,16 @@ describe('formatBaht', () => {
 	});
 	it('keeps two decimals otherwise', () => {
 		expect(formatBaht(75.5)).toBe('฿75.50');
+	});
+});
+
+describe('columnLabel', () => {
+	it('relabels Frappe as Frappé for display', () => {
+		expect(columnLabel('Frappe')).toBe('Frappé');
+	});
+	it('leaves other column names unchanged', () => {
+		expect(columnLabel('Hot')).toBe('Hot');
+		expect(columnLabel('Iced')).toBe('Iced');
 	});
 });
 
