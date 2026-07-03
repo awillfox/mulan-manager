@@ -28,7 +28,11 @@ const sheet: MenuSheet = {
 
 describe('partialRows', () => {
 	it('includes partial variant rows and flat-priced items in a variant section', () => {
-		expect(partialRows(sheet).map((r) => r.name)).toEqual(['Latte', 'Flat Coffee', 'Blue Raspberry']);
+		expect(partialRows(sheet).map((r) => r.name)).toEqual([
+			'Latte',
+			'Flat Coffee',
+			'Blue Raspberry'
+		]);
 	});
 	it('keys rows by menu id', () => {
 		expect(partialRows(sheet).map((r) => r.key)).toEqual([2, 3, 4]);

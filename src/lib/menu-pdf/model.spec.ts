@@ -93,7 +93,12 @@ describe('buildMenuSheet', () => {
 			prices: [75, 85, null],
 			single: null
 		});
-		expect(coffee.rows[1]).toEqual({ id: 2, name: 'Espresso', prices: [75, 90, 105], single: null });
+		expect(coffee.rows[1]).toEqual({
+			id: 2,
+			name: 'Espresso',
+			prices: [75, 90, 105],
+			single: null
+		});
 	});
 
 	it('renders a plain single-price section when no item has base_options', () => {

@@ -92,8 +92,7 @@
 	type Group = { key: number | null; title: string; items: Menu[] };
 	let groups = $state<Group[]>([]);
 	$effect(() => {
-		const order = (a: Menu, b: Menu) =>
-			a.sort_order - b.sort_order || a.name.localeCompare(b.name);
+		const order = (a: Menu, b: Menu) => a.sort_order - b.sort_order || a.name.localeCompare(b.name);
 		const active = menus.filter((m) => m.active);
 		const next: Group[] = [];
 		for (const c of categories) {
@@ -274,7 +273,9 @@
 									class="cursor-grab px-1 text-lg text-[var(--ios-label-tertiary)] select-none"
 									aria-hidden="true">≡</span
 								>
-								<span class="flex-1 text-[var(--ios-label)]" class:line-through={hidden}>{m.name}</span>
+								<span class="flex-1 text-[var(--ios-label)]" class:line-through={hidden}
+									>{m.name}</span
+								>
 								<div class="flex items-center gap-1 text-sm tabular-nums">
 									{#if partial && cur}
 										{#each partial.columns as col, ci (col)}
@@ -326,7 +327,9 @@
 										{:else}
 											{#each info.columns as _c, ci (ci)}
 												<span class="w-14 text-right text-[var(--ios-label-secondary)]"
-													>{info.row.prices[ci] == null ? '·' : formatBaht(info.row.prices[ci]!)}</span
+													>{info.row.prices[ci] == null
+														? '·'
+														: formatBaht(info.row.prices[ci]!)}</span
 												>
 											{/each}
 										{/if}
