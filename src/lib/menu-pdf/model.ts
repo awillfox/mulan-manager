@@ -7,6 +7,7 @@ export interface Branding {
 	subtitle: string;
 	hours: string;
 	footer: string;
+	background: string;
 }
 
 export interface SheetRow {

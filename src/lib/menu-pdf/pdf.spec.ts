@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatBaht, buildDocDefinition, columnLabel } from './pdf';
+import { formatBaht, buildDocDefinition, columnLabel, inkFor } from './pdf';
 import type { MenuSheet, SheetSection, Branding } from './model';
 
 const brand: Branding = {
@@ -7,7 +7,8 @@ const brand: Branding = {
 	tagline: 'Since 2016',
 	subtitle: 'Gallery & Café',
 	hours: 'Open daily · 8am – 6pm',
-	footer: 'All prices in Thai Baht (฿)'
+	footer: 'All prices in Thai Baht (฿)',
+	background: '#f3ead8'
 };
 
 function section(title: string, rows: number): SheetSection {
@@ -15,6 +16,7 @@ function section(title: string, rows: number): SheetSection {
 		title,
 		columns: [],
 		rows: Array.from({ length: rows }, (_, i) => ({
+			id: i,
 			name: `${title}-${i}`,
 			prices: [],
 			single: 10
@@ -81,8 +83,8 @@ describe('buildDocDefinition – variant columns', () => {
 				title: 'Drinks',
 				columns: ['Hot', 'Iced'],
 				rows: [
-					{ name: 'Americano', prices: [75, 85], single: null },
-					{ name: 'Flat Coffee', prices: [null, null], single: 110 }
+					{ id: 1, name: 'Americano', prices: [75, 85], single: null },
+					{ id: 2, name: 'Flat Coffee', prices: [null, null], single: 110 }
 				]
 			}
 		]
@@ -143,5 +145,16 @@ describe('buildDocDefinition – category paging (keep header + 3 items)', () =>
 	it('keeps a small category (<= 3 items) as a single block with no tail', () => {
 		const doc = buildDocDefinition({ sections: [section('Small', 2)] }, brand);
 		expect(tailOf(doc)).toBeUndefined();
+	});
+});
+
+describe('inkFor', () => {
+	it('returns dark ink on a light background', () => {
+		expect(inkFor('#f3ead8')).toBe('#2b2b2b'); // cream
+		expect(inkFor('#ffffff')).toBe('#2b2b2b');
+	});
+	it('returns light ink on a dark background', () => {
+		expect(inkFor('#2b2b2b')).toBe('#f7f2e8');
+		expect(inkFor('#000000')).toBe('#f7f2e8');
 	});
 });

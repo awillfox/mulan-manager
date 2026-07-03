@@ -10,7 +10,8 @@ const brand: Branding = {
 	tagline: 'Since 2016',
 	subtitle: 'Gallery & Café',
 	hours: 'Open daily · 8am – 6pm',
-	footer: 'All prices in Thai Baht (฿)'
+	footer: 'All prices in Thai Baht (฿)',
+	background: '#f3ead8'
 };
 
 const sheet: MenuSheet = {
@@ -18,12 +19,12 @@ const sheet: MenuSheet = {
 		{
 			title: 'Coffee',
 			columns: ['Hot', 'Iced'],
-			rows: [{ name: 'Americano', prices: [75, 85], single: null }]
+			rows: [{ id: 1, name: 'Americano', prices: [75, 85], single: null }]
 		},
 		{
 			title: 'Food',
 			columns: [],
-			rows: [{ name: 'Pancake', prices: [], single: 80 }]
+			rows: [{ id: 2, name: 'Pancake', prices: [], single: 80 }]
 		}
 	]
 };

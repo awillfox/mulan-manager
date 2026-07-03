@@ -8,8 +8,8 @@ describe('buildRows', () => {
 			title: 'Food',
 			columns: [],
 			rows: [
-				{ name: 'Toast', prices: [], single: 45 },
-				{ name: 'Free', prices: [], single: null }
+				{ id: 1, name: 'Toast', prices: [], single: 45 },
+				{ id: 2, name: 'Free', prices: [], single: null }
 			]
 		};
 		expect(buildRows(s)).toEqual([
@@ -29,7 +29,7 @@ describe('buildRows', () => {
 		const s: SheetSection = {
 			title: 'Coffee',
 			columns: ['Hot', 'Iced', 'Frappe'],
-			rows: [{ name: 'Latte', prices: [55, 60, 70], single: null }]
+			rows: [{ id: 1, name: 'Latte', prices: [55, 60, 70], single: null }]
 		};
 		expect(buildRows(s)).toEqual([
 			[
@@ -51,7 +51,7 @@ describe('buildRows', () => {
 		const s: SheetSection = {
 			title: 'Coffee',
 			columns: ['Hot', 'Iced', 'Frappe'],
-			rows: [{ name: 'Americano', prices: [45, 50, null], single: null }]
+			rows: [{ id: 1, name: 'Americano', prices: [45, 50, null], single: null }]
 		};
 		expect(buildRows(s)[1]).toEqual([
 			{ value: 'Americano', type: String },
@@ -65,7 +65,7 @@ describe('buildRows', () => {
 		const s: SheetSection = {
 			title: 'Coffee',
 			columns: ['Hot', 'Iced', 'Frappe'],
-			rows: [{ name: 'Espresso', prices: [null, null, null], single: 40 }]
+			rows: [{ id: 1, name: 'Espresso', prices: [null, null, null], single: 40 }]
 		};
 		expect(buildRows(s)[1]).toEqual([
 			{ value: 'Espresso', type: String },

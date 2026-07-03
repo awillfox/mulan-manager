@@ -1,11 +1,22 @@
 import type { Content, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import type { Branding, MenuSheet, SheetRow, SheetSection } from './model';
 
-const CREAM = '#f3ead8';
 const INK = '#2b2b2b';
+const LIGHT_INK = '#f7f2e8';
 // A5 portrait in points (used only for the full-page background rectangle).
 const A5_W = 419.53;
 const A5_H = 595.28;
+
+// Pick a legible text color for a background: dark ink on light backgrounds,
+// light ink on dark ones, by perceived luminance.
+export function inkFor(bg: string): string {
+	const hex = bg.replace('#', '');
+	const r = parseInt(hex.slice(0, 2), 16);
+	const g = parseInt(hex.slice(2, 4), 16);
+	const b = parseInt(hex.slice(4, 6), 16);
+	const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+	return luminance >= 0.6 ? INK : LIGHT_INK;
+}
 
 export function formatBaht(n: number): string {
 	return Number.isInteger(n) ? `฿${n}` : `฿${n.toFixed(2)}`;
@@ -104,13 +115,14 @@ function sectionContent(s: SheetSection): Content[] {
 }
 
 export function buildDocDefinition(sheet: MenuSheet, b: Branding): TDocumentDefinitions {
+	const ink = inkFor(b.background);
 	return {
 		pageSize: 'A5',
 		pageOrientation: 'portrait',
 		pageMargins: [34, 32, 34, 38],
-		defaultStyle: { font: 'Sarabun', fontSize: 11, color: INK },
+		defaultStyle: { font: 'Sarabun', fontSize: 11, color: ink },
 		background: () => ({
-			canvas: [{ type: 'rect', x: 0, y: 0, w: A5_W, h: A5_H, color: CREAM }]
+			canvas: [{ type: 'rect', x: 0, y: 0, w: A5_W, h: A5_H, color: b.background }]
 		}),
 		content: [
 			{
@@ -130,7 +142,7 @@ export function buildDocDefinition(sheet: MenuSheet, b: Branding): TDocumentDefi
 			alignment: 'center',
 			fontSize: 9,
 			italics: true,
-			color: INK,
+			color: ink,
 			margin: [0, 12, 0, 0]
 		})
 	};
