@@ -11,29 +11,6 @@ export function formatBaht(n: number): string {
 	return Number.isInteger(n) ? `฿${n}` : `฿${n.toFixed(2)}`;
 }
 
-function estimateHeight(s: SheetSection): number {
-	// title (~2 lines of vertical space) + optional column header + one line per row
-	return 2 + (s.columns.length ? 1 : 0) + s.rows.length;
-}
-
-export function splitColumns(sections: SheetSection[]): [SheetSection[], SheetSection[]] {
-	const left: SheetSection[] = [];
-	const right: SheetSection[] = [];
-	let lh = 0;
-	let rh = 0;
-	for (const s of sections) {
-		const h = estimateHeight(s);
-		if (lh <= rh) {
-			left.push(s);
-			lh += h;
-		} else {
-			right.push(s);
-			rh += h;
-		}
-	}
-	return [left, right];
-}
-
 function sectionContent(s: SheetSection): Content {
 	const hasCols = s.columns.length > 0;
 	const body: TableCell[][] = [];
@@ -43,7 +20,7 @@ function sectionContent(s: SheetSection): Content {
 			{ text: '' },
 			...s.columns.map((c) => ({
 				text: c.toUpperCase(),
-				fontSize: 6,
+				fontSize: 8,
 				alignment: 'right' as const,
 				characterSpacing: 1
 			}))
@@ -81,18 +58,18 @@ function sectionContent(s: SheetSection): Content {
 		}
 	}
 
-	const widths = hasCols ? ['*', ...s.columns.map(() => 30)] : ['*', 'auto'];
+	const widths = hasCols ? ['*', ...s.columns.map(() => 48)] : ['*', 'auto'];
 
 	return {
-		margin: [0, 0, 0, 10],
+		margin: [0, 0, 0, 16],
 		stack: [
 			{
 				text: s.title.toUpperCase(),
-				fontSize: 9,
+				fontSize: 14,
 				bold: true,
 				characterSpacing: 2,
 				alignment: 'center',
-				margin: [0, 0, 0, 4]
+				margin: [0, 0, 0, 6]
 			},
 			{ table: { widths, body }, layout: 'noBorders' }
 		]
@@ -100,12 +77,11 @@ function sectionContent(s: SheetSection): Content {
 }
 
 export function buildDocDefinition(sheet: MenuSheet, b: Branding): TDocumentDefinitions {
-	const [left, right] = splitColumns(sheet.sections);
 	return {
 		pageSize: 'A5',
 		pageOrientation: 'portrait',
-		pageMargins: [28, 28, 28, 34],
-		defaultStyle: { font: 'Sarabun', fontSize: 8, color: INK },
+		pageMargins: [34, 32, 34, 38],
+		defaultStyle: { font: 'Sarabun', fontSize: 11, color: INK },
 		background: () => ({
 			canvas: [{ type: 'rect', x: 0, y: 0, w: A5_W, h: A5_H, color: CREAM }]
 		}),
@@ -113,27 +89,22 @@ export function buildDocDefinition(sheet: MenuSheet, b: Branding): TDocumentDefi
 			{
 				text: b.tagline.toUpperCase(),
 				alignment: 'center',
-				fontSize: 7,
+				fontSize: 9,
 				characterSpacing: 3,
 				margin: [0, 0, 0, 2]
 			},
-			{ text: b.title, alignment: 'center', font: 'Oswald', fontSize: 24, characterSpacing: 1 },
-			{ text: b.subtitle, alignment: 'center', fontSize: 10, margin: [0, 2, 0, 14] },
-			{
-				columns: [
-					{ width: '*', stack: left.map(sectionContent) },
-					{ width: '*', stack: right.map(sectionContent) }
-				],
-				columnGap: 18
-			}
+			{ text: b.title, alignment: 'center', font: 'Oswald', fontSize: 28, characterSpacing: 1 },
+			{ text: b.subtitle, alignment: 'center', fontSize: 13, margin: [0, 2, 0, 18] },
+			// Single column: all sections stacked full-width.
+			...sheet.sections.map(sectionContent)
 		],
 		footer: () => ({
 			text: `${b.hours}      ${b.footer}`,
 			alignment: 'center',
-			fontSize: 7,
+			fontSize: 9,
 			italics: true,
 			color: INK,
-			margin: [0, 10, 0, 0]
+			margin: [0, 12, 0, 0]
 		})
 	};
 }
