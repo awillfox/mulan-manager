@@ -12,6 +12,7 @@
 	import { getSettings } from '$lib/api/settings';
 	import { buildMenuSheet, type Branding } from '$lib/menu-pdf/model';
 	import { buildDocDefinition, generatePdf, formatBaht, columnLabel } from '$lib/menu-pdf/pdf';
+	import { buildMenuWorkbook } from '$lib/menu-pdf/xlsx';
 	import {
 		partialRows,
 		applyOverrides,
@@ -100,14 +101,31 @@
 		return () => clearTimeout(timer);
 	});
 
-	function download() {
-		if (!blob) return;
-		const url = URL.createObjectURL(blob);
+	function saveBlob(b: Blob, filename: string) {
+		const url = URL.createObjectURL(b);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = 'menu.pdf';
+		a.download = filename;
 		a.click();
 		URL.revokeObjectURL(url);
+	}
+
+	function download() {
+		if (!blob) return;
+		saveBlob(blob, 'menu.pdf');
+	}
+
+	let exporting = $state(false);
+	async function downloadXlsx() {
+		exporting = true;
+		try {
+			const wb = await buildMenuWorkbook(effectiveSheet);
+			saveBlob(wb, 'menu.xlsx');
+		} catch (e) {
+			showToast((e as Error).message, 'error');
+		} finally {
+			exporting = false;
+		}
 	}
 </script>
 
@@ -239,8 +257,13 @@
 			</Card>
 		</div>
 
-		<Button onclick={download} disabled={!blob || generating}>
-			{generating ? 'Generating…' : 'Download PDF'}
-		</Button>
+		<div class="space-y-3">
+			<Button onclick={download} disabled={!blob || generating}>
+				{generating ? 'Generating…' : 'Download PDF'}
+			</Button>
+			<Button variant="tinted" onclick={downloadXlsx} disabled={exporting}>
+				{exporting ? 'Exporting…' : 'Download Excel'}
+			</Button>
+		</div>
 	{/if}
 </div>
