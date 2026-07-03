@@ -23,6 +23,7 @@ export interface Menu {
 	vfd_name: string;
 	active: boolean;
 	favourite: boolean;
+	sort_order: number;
 	option_groups: MenuGroup[];
 	base_options: BaseOption[];
 }
@@ -59,6 +60,12 @@ export const updateMenu = (id: number, m: MenuInput) =>
 export const toggleMenu = (id: number) =>
 	fetch(`/api/menus/${id}/toggle`, { method: 'PATCH' }).then(ok);
 export const deleteMenu = (id: number) => fetch(`/api/menus/${id}`, { method: 'DELETE' }).then(ok);
+export const reorderMenus = (categoryId: number | null, orderedIds: number[]) =>
+	fetch('/api/menus/reorder', {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ category_id: categoryId, ordered_ids: orderedIds })
+	}).then(ok);
 
 export interface SetGroupsBody {
 	groups: (
