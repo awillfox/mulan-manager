@@ -11,7 +11,8 @@
 	import { listCategories, type Category } from '$lib/api/categories';
 	import { getSettings } from '$lib/api/settings';
 	import { buildMenuSheet, type Branding } from '$lib/menu-pdf/model';
-	import { buildDocDefinition, generatePdf } from '$lib/menu-pdf/pdf';
+	import { buildDocDefinition, generatePdf, formatBaht } from '$lib/menu-pdf/pdf';
+	import { partialRows, applyOverrides, movePrice, type Overrides } from '$lib/menu-pdf/overrides';
 
 	let loading = $state(true);
 	let err = $state('');
@@ -47,10 +48,20 @@
 	const sheet = $derived(buildMenuSheet(menus, categories));
 	const hasItems = $derived(sheet.sections.length > 0);
 
-	// Regenerate the preview (debounced) whenever the data or branding changes.
+	// Generator-only reassignment of partially-filled variant prices between the
+	// shared Hot/Iced/Frappé columns (never touches the backend).
+	let overrides = $state<Overrides>({});
+	const effectiveSheet = $derived(applyOverrides(sheet, overrides));
+	const partials = $derived(partialRows(sheet));
+
+	function move(key: string, base: (number | null)[], from: number, to: number) {
+		overrides = { ...overrides, [key]: movePrice(overrides[key] ?? base, from, to) };
+	}
+
+	// Regenerate the preview (debounced) whenever the data, branding, or overrides change.
 	$effect(() => {
 		if (!hasItems) return;
-		const doc = buildDocDefinition(sheet, { ...brand });
+		const doc = buildDocDefinition(effectiveSheet, { ...brand });
 		generating = true;
 		const timer = setTimeout(async () => {
 			const myToken = ++runToken;
@@ -106,6 +117,74 @@
 				</div>
 			</Card>
 		</div>
+
+		{#if partials.length > 0}
+			<div>
+				<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">
+					Adjust variant columns
+				</p>
+				<Card padded={false}>
+					<p class="px-3 pt-3 text-xs text-[var(--ios-label-tertiary)]">
+						These items don't fill every column. Use ‹ › to move a price into an empty
+						Hot/Iced/Frappé slot before generating.
+					</p>
+					<div class="overflow-x-auto">
+						<table class="w-full text-sm">
+							<thead>
+								<tr class="text-[var(--ios-label-tertiary)]">
+									<th class="px-3 py-2 text-left font-medium">Item</th>
+									{#each partials[0].columns as c (c)}
+										<th class="px-2 py-2 text-center font-medium">{c.toUpperCase()}</th>
+									{/each}
+								</tr>
+							</thead>
+							<tbody>
+								{#each partials as p (p.key)}
+									{@const cur = overrides[p.key] ?? p.prices}
+									<tr class="border-t border-[var(--ios-separator)]">
+										<td class="px-3 py-2 text-[var(--ios-label)]">
+											{p.name}
+											<span class="block text-xs text-[var(--ios-label-tertiary)]"
+												>{p.sectionTitle}</span
+											>
+										</td>
+										{#each p.columns as col, ci (col)}
+											{@const v = cur[ci]}
+											<td class="px-2 py-2 text-center">
+												{#if v != null}
+													<div class="flex items-center justify-center gap-0.5">
+														{#if ci > 0 && cur[ci - 1] == null}
+															<button
+																type="button"
+																class="flex h-7 w-7 items-center justify-center rounded-full text-lg text-[var(--ios-blue)] active:bg-[var(--ios-fill)]"
+																aria-label={`Move ${p.name} ${col} price left`}
+																onclick={() => move(p.key, p.prices, ci, ci - 1)}>‹</button
+															>
+														{/if}
+														<span class="tabular-nums text-[var(--ios-label)]">{formatBaht(v)}</span
+														>
+														{#if ci < p.columns.length - 1 && cur[ci + 1] == null}
+															<button
+																type="button"
+																class="flex h-7 w-7 items-center justify-center rounded-full text-lg text-[var(--ios-blue)] active:bg-[var(--ios-fill)]"
+																aria-label={`Move ${p.name} ${col} price right`}
+																onclick={() => move(p.key, p.prices, ci, ci + 1)}>›</button
+															>
+														{/if}
+													</div>
+												{:else}
+													<span class="text-[var(--ios-label-tertiary)]">·</span>
+												{/if}
+											</td>
+										{/each}
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</Card>
+			</div>
+		{/if}
 
 		<div>
 			<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">Preview</p>
