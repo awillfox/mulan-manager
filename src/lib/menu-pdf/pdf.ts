@@ -117,7 +117,7 @@ export function buildDocDefinition(sheet: MenuSheet, b: Branding): TDocumentDefi
 				characterSpacing: 3,
 				margin: [0, 0, 0, 2]
 			},
-			{ text: b.title, alignment: 'center', fontSize: 20, bold: true },
+			{ text: b.title, alignment: 'center', font: 'Oswald', fontSize: 24, characterSpacing: 1 },
 			{ text: b.subtitle, alignment: 'center', fontSize: 10, margin: [0, 2, 0, 14] },
 			{
 				columns: [
@@ -147,19 +147,23 @@ export async function generatePdf(
 	]);
 	// pdfmake's browser build is CJS; the module or its .default is the pdfMake object.
 	const pdfMake = (pdfMod as unknown as { default?: unknown }).default ?? pdfMod;
+	// pdfmake 0.3 API: fonts are registered via addVirtualFileSystem()/setFonts(),
+	// NOT by assigning `.vfs`/`.fonts` (the 0.2.x API, a no-op here — createPdf reads
+	// the shared virtual FS populated only through addVirtualFileSystem).
 	const mk = pdfMake as {
-		vfs: Record<string, string>;
-		fonts: unknown;
+		addVirtualFileSystem: (vfs: Record<string, string>) => void;
+		setFonts: (fonts: unknown) => void;
 		createPdf: (d: TDocumentDefinitions) => {
-			getBlob: (cb: (b: Blob) => void) => void;
-			getDataUrl: (cb: (u: string) => void) => void;
+			// pdfmake 0.3: these are async and return Promises (not 0.2.x callbacks).
+			getBlob: () => Promise<Blob>;
+			getDataUrl: () => Promise<string>;
 		};
 	};
 	const { vfs, fonts } = await loadFonts();
-	mk.vfs = vfs;
-	mk.fonts = fonts;
+	mk.addVirtualFileSystem(vfs);
+	mk.setFonts(fonts);
 	const pdf = mk.createPdf(doc);
-	const blob = await new Promise<Blob>((res) => pdf.getBlob(res));
-	const dataUrl = await new Promise<string>((res) => pdf.getDataUrl(res));
+	const blob = await pdf.getBlob();
+	const dataUrl = await pdf.getDataUrl();
 	return { dataUrl, blob };
 }

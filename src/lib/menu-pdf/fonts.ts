@@ -5,7 +5,9 @@ const FILES: Record<string, string> = {
 	'Sarabun-Regular.ttf': '/fonts/Sarabun-Regular.ttf',
 	'Sarabun-Bold.ttf': '/fonts/Sarabun-Bold.ttf',
 	'Sarabun-Italic.ttf': '/fonts/Sarabun-Italic.ttf',
-	'Sarabun-BoldItalic.ttf': '/fonts/Sarabun-BoldItalic.ttf'
+	'Sarabun-BoldItalic.ttf': '/fonts/Sarabun-BoldItalic.ttf',
+	// Oswald (variable, Latin-only) — display face for the menu title.
+	'Oswald-Variable.ttf': '/fonts/Oswald-Variable.ttf'
 };
 
 let cache: { vfs: Record<string, string>; fonts: TFontDictionary } | null = null;
@@ -33,6 +35,13 @@ export async function loadFonts() {
 			bold: 'Sarabun-Bold.ttf',
 			italics: 'Sarabun-Italic.ttf',
 			bolditalics: 'Sarabun-BoldItalic.ttf'
+		},
+		// Latin-only display face; single variable file mapped to every style.
+		Oswald: {
+			normal: 'Oswald-Variable.ttf',
+			bold: 'Oswald-Variable.ttf',
+			italics: 'Oswald-Variable.ttf',
+			bolditalics: 'Oswald-Variable.ttf'
 		}
 	};
 	cache = { vfs, fonts };
