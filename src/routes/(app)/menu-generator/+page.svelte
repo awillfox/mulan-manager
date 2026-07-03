@@ -12,7 +12,7 @@
 	import { listCategories, type Category } from '$lib/api/categories';
 	import { getSettings } from '$lib/api/settings';
 	import { buildMenuSheet, filterExcluded, type Branding } from '$lib/menu-pdf/model';
-	import { buildDocDefinition, generatePdf, formatBaht, columnLabel } from '$lib/menu-pdf/pdf';
+	import { buildDocDefinition, generatePdf, formatBaht } from '$lib/menu-pdf/pdf';
 	import { buildMenuWorkbook } from '$lib/menu-pdf/xlsx';
 	import {
 		partialRows,
@@ -40,6 +40,7 @@
 	let generating = $state(false);
 	let blob = $state<Blob | null>(null);
 	let runToken = 0;
+	let committing = $state(false);
 
 	onMount(async () => {
 		try {
@@ -109,19 +110,24 @@
 	}
 
 	async function commitOrder(gi: number) {
-		const g = groups[gi];
-		const ids = g.items.map((m) => m.id);
-		// Optimistic: reflect the new order locally so the preview updates now.
-		menus = menus.map((m) => {
-			const idx = ids.indexOf(m.id);
-			return idx >= 0 ? { ...m, sort_order: idx + 1 } : m;
-		});
+		committing = true;
 		try {
-			await reorderMenus(g.key, ids);
-			menus = await listMenus();
-		} catch (err) {
-			showToast((err as Error).message, 'error');
-			menus = await listMenus(); // reconcile on failure
+			const g = groups[gi];
+			const ids = g.items.map((m) => m.id);
+			// Optimistic: reflect the new order locally so the preview updates now.
+			menus = menus.map((m) => {
+				const idx = ids.indexOf(m.id);
+				return idx >= 0 ? { ...m, sort_order: idx + 1 } : m;
+			});
+			try {
+				await reorderMenus(g.key, ids);
+				menus = await listMenus();
+			} catch (err) {
+				showToast((err as Error).message, 'error');
+				menus = await listMenus(); // reconcile on failure
+			}
+		} finally {
+			committing = false;
 		}
 	}
 
@@ -245,7 +251,13 @@
 					</p>
 					<ul
 						class="divide-y divide-[var(--ios-separator)]"
-						use:dndzone={{ items: g.items, flipDurationMs: 150, dropTargetStyle: {} }}
+						use:dndzone={{
+							items: g.items,
+							flipDurationMs: 150,
+							dropTargetStyle: {},
+							dropFromOthersDisabled: true,
+							dragDisabled: committing
+						}}
 						onconsider={(e) => handleSort(gi, e)}
 						onfinalize={(e) => {
 							handleSort(gi, e);
