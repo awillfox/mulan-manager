@@ -1,5 +1,5 @@
 import type { Content, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
-import type { Branding, MenuSheet, SheetSection } from './model';
+import type { Branding, MenuSheet, SheetRow, SheetSection } from './model';
 
 const CREAM = '#f3ead8';
 const INK = '#2b2b2b';
@@ -11,69 +11,90 @@ export function formatBaht(n: number): string {
 	return Number.isInteger(n) ? `฿${n}` : `฿${n.toFixed(2)}`;
 }
 
-function sectionContent(s: SheetSection): Content {
-	const hasCols = s.columns.length > 0;
-	const body: TableCell[][] = [];
+// Keep a category header with at least this many items on the same page; if
+// they don't fit, the whole (unbreakable) head is moved to the next page.
+const MIN_KEEP_ROWS = 3;
 
-	if (hasCols) {
-		body.push([
-			{ text: '' },
-			...s.columns.map((c) => ({
-				text: c.toUpperCase(),
-				fontSize: 8,
-				alignment: 'right' as const,
-				characterSpacing: 1
+function dataRow(s: SheetSection, r: SheetRow): TableCell[] {
+	if (s.columns.length === 0) {
+		return [
+			{ text: r.name },
+			{ text: r.single == null ? '' : formatBaht(r.single), alignment: 'right' }
+		];
+	}
+	const anyPrice = r.prices.some((p) => p != null);
+	if (anyPrice) {
+		return [
+			{ text: r.name },
+			...r.prices.map((p) => ({
+				text: p == null ? '' : formatBaht(p),
+				alignment: 'right' as const
 			}))
-		]);
+		];
 	}
+	// item has no variant prices inside a variant section: one price spanning the price cols
+	return [
+		{ text: r.name },
+		{
+			text: r.single == null ? '' : formatBaht(r.single),
+			alignment: 'right',
+			colSpan: s.columns.length
+		},
+		...Array(Math.max(0, s.columns.length - 1)).fill({ text: '' })
+	];
+}
 
-	for (const r of s.rows) {
-		if (!hasCols) {
-			body.push([
-				{ text: r.name },
-				{ text: r.single == null ? '' : formatBaht(r.single), alignment: 'right' }
-			]);
-			continue;
-		}
-		const anyPrice = r.prices.some((p) => p != null);
-		if (anyPrice) {
-			body.push([
-				{ text: r.name },
-				...r.prices.map((p) => ({
-					text: p == null ? '' : formatBaht(p),
-					alignment: 'right' as const
-				}))
-			]);
-		} else {
-			// item has no variant prices inside a variant section: one price, spanning the price cols
-			body.push([
-				{ text: r.name },
-				{
-					text: r.single == null ? '' : formatBaht(r.single),
-					alignment: 'right',
-					colSpan: s.columns.length
-				},
-				...Array(Math.max(0, s.columns.length - 1)).fill({ text: '' })
-			]);
-		}
-	}
-
+function sectionContent(s: SheetSection): Content[] {
+	const hasCols = s.columns.length > 0;
 	const widths = hasCols ? ['*', ...s.columns.map(() => 48)] : ['*', 'auto'];
 
-	return {
-		margin: [0, 0, 0, 16],
+	const headerRow: TableCell[] | null = hasCols
+		? [
+				{ text: '' },
+				...s.columns.map((c) => ({
+					text: c.toUpperCase(),
+					fontSize: 8,
+					alignment: 'right' as const,
+					characterSpacing: 1
+				}))
+			]
+		: null;
+
+	const rows = s.rows.map((r) => dataRow(s, r));
+	const first = rows.slice(0, MIN_KEEP_ROWS);
+	const rest = rows.slice(MIN_KEEP_ROWS);
+
+	const title: Content = {
+		text: s.title.toUpperCase(),
+		fontSize: 14,
+		bold: true,
+		characterSpacing: 2,
+		alignment: 'center',
+		margin: [0, 0, 0, 6]
+	};
+
+	// Head = title + column header + first MIN_KEEP_ROWS items, kept together.
+	const head: Content = {
+		unbreakable: true,
+		margin: [0, 0, 0, rest.length ? 0 : 16],
 		stack: [
+			title,
 			{
-				text: s.title.toUpperCase(),
-				fontSize: 14,
-				bold: true,
-				characterSpacing: 2,
-				alignment: 'center',
-				margin: [0, 0, 0, 6]
-			},
-			{ table: { widths, body }, layout: 'noBorders' }
+				table: { widths, body: headerRow ? [headerRow, ...first] : first },
+				layout: 'noBorders'
+			}
 		]
 	};
+
+	if (rest.length === 0) return [head];
+
+	// Remaining items flow normally and may break across pages.
+	const tail: Content = {
+		margin: [0, 0, 0, 16],
+		table: { widths, body: rest },
+		layout: 'noBorders'
+	};
+	return [head, tail];
 }
 
 export function buildDocDefinition(sheet: MenuSheet, b: Branding): TDocumentDefinitions {
@@ -96,7 +117,7 @@ export function buildDocDefinition(sheet: MenuSheet, b: Branding): TDocumentDefi
 			{ text: b.title, alignment: 'center', font: 'Oswald', fontSize: 28, characterSpacing: 1 },
 			{ text: b.subtitle, alignment: 'center', fontSize: 13, margin: [0, 2, 0, 18] },
 			// Single column: all sections stacked full-width.
-			...sheet.sections.map(sectionContent)
+			...sheet.sections.flatMap(sectionContent)
 		],
 		footer: () => ({
 			text: `${b.hours}      ${b.footer}`,

@@ -100,3 +100,38 @@ describe('buildDocDefinition – variant columns', () => {
 		expect(header[2].text).toBe('ICED');
 	});
 });
+
+describe('buildDocDefinition – category paging (keep header + 3 items)', () => {
+	function contentOf(doc: ReturnType<typeof buildDocDefinition>) {
+		return doc.content as unknown as Array<Record<string, unknown>>;
+	}
+	// The unbreakable head block has a `stack`; the flowing tail is a bare `table` node.
+	const headOf = (doc: ReturnType<typeof buildDocDefinition>) =>
+		contentOf(doc).find((n) => Array.isArray(n.stack)) as {
+			unbreakable?: boolean;
+			stack: [unknown, { table: { body: unknown[] } }];
+		};
+	const tailOf = (doc: ReturnType<typeof buildDocDefinition>) =>
+		contentOf(doc).find((n) => 'table' in n && !('stack' in n)) as
+			| { unbreakable?: boolean; table: { body: unknown[] } }
+			| undefined;
+
+	it('keeps the category header + first 3 items in one unbreakable block', () => {
+		const doc = buildDocDefinition({ sections: [section('Big', 5)] }, brand);
+		const head = headOf(doc);
+		expect(head.unbreakable).toBe(true);
+		expect(head.stack[1].table.body).toHaveLength(3);
+	});
+
+	it('flows items beyond the first 3 into a separate breakable tail', () => {
+		const doc = buildDocDefinition({ sections: [section('Big', 5)] }, brand);
+		const tail = tailOf(doc)!;
+		expect(tail.unbreakable).toBeUndefined();
+		expect(tail.table.body).toHaveLength(2);
+	});
+
+	it('keeps a small category (<= 3 items) as a single block with no tail', () => {
+		const doc = buildDocDefinition({ sections: [section('Small', 2)] }, brand);
+		expect(tailOf(doc)).toBeUndefined();
+	});
+});
