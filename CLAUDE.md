@@ -10,7 +10,7 @@
 ```
 Browser ──HTTPS (same-origin)──▶ render: SvelteKit (adapter-node)
                                    └─ tailscaled (userspace) HTTP proxy :1055
-                                        └─WireGuard─▶ mulan backend (chaiyarak 100.109.90.83:8085, private)
+                                        └─WireGuard─▶ mulan backend (coffee-server 100.86.43.70:8085, private)
 ```
 
 - **Server-side API proxy** `src/routes/api/[...path]/+server.ts`: the browser calls `/api/*` same-origin; the proxy forwards to the backend over Tailscale, **injecting the bearer from the httpOnly session cookie**, restricted to an `ALLOW` prefix list (NOT an open tunnel). Reads the request body as **`arrayBuffer()`** (binary-safe — needed for multipart logo upload; `text()` corrupts it).
@@ -31,7 +31,7 @@ httpOnly cookie `mm_session` holds the opaque bearer (set by the `/login` form a
 - **Typed clients** per feature in `src/lib/api/*.ts` (`discounts`, `menus`, `categories`, `menuGroups`, `optionGroups`, `members`, `cashiers`, `settings`, `account`). Each parses the `{data,error}` envelope; re-fetch the list after a mutation (server is source of truth).
 - **iOS component library** `src/lib/components/ios/` (NavBar, Card, ListRow, Button, TextField, Toggle, SegmentedControl, BottomSheet, Picker, SearchBar, Spinner, EmptyState, ToastHost, BottomTabBar, LogoUpload). Tokens in `src/lib/styles/tokens.css` (semantic colors, light/dark, 8pt, SF stack). Match the existing idiom; touch targets ≥44px.
 - **Adding a manager API call:** add its prefix to `ALLOW` in `src/routes/api/[...path]/+server.ts` AND ensure the backend route is registered in the right auth group (`../mulan/main.go`).
-- **Tests:** vitest unit (`src/**/*.spec.ts`, e.g. `menuGroups`/`optionGroups` serialization), playwright e2e in **`e2e/`** only (`playwright.config.ts` sets `testDir: 'e2e'` so it doesn't pick up vitest specs). Run e2e against the live backend with `BACKEND_URL=http://100.109.90.83:8085 npx playwright test`.
+- **Tests:** vitest unit (`src/**/*.spec.ts`, e.g. `menuGroups`/`optionGroups` serialization), playwright e2e in **`e2e/`** only (`playwright.config.ts` sets `testDir: 'e2e'` so it doesn't pick up vitest specs). Run e2e against the live backend with `BACKEND_URL=http://100.86.43.70:8085 npx playwright test`.
 
 ## Deploy
 
