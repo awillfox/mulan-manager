@@ -7,7 +7,8 @@
 	import Spinner from '$lib/components/ios/Spinner.svelte';
 	import EmptyState from '$lib/components/ios/EmptyState.svelte';
 	import { showToast } from '$lib/components/ios/toast.svelte';
-	import { listMenus, type Menu } from '$lib/api/menus';
+	import { dndzone } from 'svelte-dnd-action';
+	import { listMenus, reorderMenus, type Menu } from '$lib/api/menus';
 	import { listCategories, type Category } from '$lib/api/categories';
 	import { getSettings } from '$lib/api/settings';
 	import { buildMenuSheet, filterExcluded, type Branding } from '$lib/menu-pdf/model';
@@ -71,6 +72,58 @@
 		excluded = next;
 	}
 	const pdfSheet = $derived(filterExcluded(effectiveSheet, excluded));
+
+	// Price/column cells for a row, looked up by menu id off the effective sheet.
+	const rowById = $derived(
+		new Map(
+			effectiveSheet.sections.flatMap((s) =>
+				s.rows.map((r) => [r.id, { columns: s.columns, row: r }] as const)
+			)
+		)
+	);
+
+	// Partial rows (need the ‹ ›/place price controls), looked up by menu id.
+	const partialById = $derived(new Map(partials.map((p) => [p.key, p])));
+
+	// One drag group per category (categories in order, then uncategorised),
+	// each holding its menus sorted by (sort_order, name). Rebuilt whenever the
+	// menu list changes; mutated in place during a drag.
+	type Group = { key: number | null; title: string; items: Menu[] };
+	let groups = $state<Group[]>([]);
+	$effect(() => {
+		const order = (a: Menu, b: Menu) =>
+			a.sort_order - b.sort_order || a.name.localeCompare(b.name);
+		const active = menus.filter((m) => m.active);
+		const next: Group[] = [];
+		for (const c of categories) {
+			const items = active.filter((m) => m.category_id === c.id).sort(order);
+			if (items.length) next.push({ key: c.id, title: c.name, items });
+		}
+		const other = active.filter((m) => m.category_id == null).sort(order);
+		if (other.length) next.push({ key: null, title: 'Other', items: other });
+		groups = next;
+	});
+
+	function handleSort(gi: number, e: CustomEvent<{ items: Menu[] }>) {
+		groups[gi].items = e.detail.items;
+	}
+
+	async function commitOrder(gi: number) {
+		const g = groups[gi];
+		const ids = g.items.map((m) => m.id);
+		// Optimistic: reflect the new order locally so the preview updates now.
+		menus = menus.map((m) => {
+			const idx = ids.indexOf(m.id);
+			return idx >= 0 ? { ...m, sort_order: idx + 1 } : m;
+		});
+		try {
+			await reorderMenus(g.key, ids);
+			menus = await listMenus();
+		} catch (err) {
+			showToast((err as Error).message, 'error');
+			menus = await listMenus(); // reconcile on failure
+		}
+	}
 
 	function move(key: number, base: (number | null)[], from: number, to: number) {
 		overrides = { ...overrides, [key]: movePrice(overrides[key] ?? base, from, to) };
@@ -176,89 +229,110 @@
 			</Card>
 		</div>
 
-		{#if partials.length > 0}
-			<div>
-				<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">
-					Adjust variant columns
+		<div>
+			<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">Items</p>
+			<Card padded={false}>
+				<p class="px-3 pt-3 text-xs text-[var(--ios-label-tertiary)]">
+					Drag ≡ to reorder within a category. Tap the eye to hide an item from the PDF (the Excel
+					export always includes everything). Use ‹ › to move a variant price between empty columns,
+					or tap a faint price to place a flat item into a column.
 				</p>
-				<Card padded={false}>
-					<p class="px-3 pt-3 text-xs text-[var(--ios-label-tertiary)]">
-						These items don't fill every column. Use ‹ › to move a price between empty slots, or tap
-						a faint price to place a flat item into a column.
+				{#each groups as g, gi (g.key ?? 'other')}
+					<p
+						class="px-3 pt-3 pb-1 text-xs font-semibold tracking-wide text-[var(--ios-label-tertiary)]"
+					>
+						{g.title.toUpperCase()}
 					</p>
-					<div class="overflow-x-auto">
-						<table class="w-full text-sm">
-							<thead>
-								<tr class="text-[var(--ios-label-tertiary)]">
-									<th class="px-3 py-2 text-left font-medium">Item</th>
-									{#each partials[0].columns as c (c)}
-										<th class="px-2 py-2 text-center font-medium">{columnLabel(c).toUpperCase()}</th
-										>
-									{/each}
-								</tr>
-							</thead>
-							<tbody>
-								{#each partials as p (p.key)}
-									{@const cur = overrides[p.key] ?? p.prices}
-									{@const single = p.single}
-									{@const unplaced = single != null && cur.every((x) => x == null)}
-									{@const hasOverride = p.key in overrides}
-									<tr class="border-t border-[var(--ios-separator)]">
-										<td class="px-3 py-2 text-[var(--ios-label)]">
-											{p.name}
-											<span class="block text-xs text-[var(--ios-label-tertiary)]">
-												{p.sectionTitle}{#if hasOverride}
-													· <button
-														type="button"
-														class="text-[var(--ios-blue)]"
-														onclick={() => clearRow(p.key)}>Reset</button
-													>{/if}
-											</span>
-										</td>
-										{#each p.columns as col, ci (col)}
+					<ul
+						class="divide-y divide-[var(--ios-separator)]"
+						use:dndzone={{ items: g.items, flipDurationMs: 150, dropTargetStyle: {} }}
+						onconsider={(e) => handleSort(gi, e)}
+						onfinalize={(e) => {
+							handleSort(gi, e);
+							commitOrder(gi);
+						}}
+					>
+						{#each g.items as m (m.id)}
+							{@const hidden = excluded.has(m.id)}
+							{@const partial = partialById.get(m.id)}
+							{@const info = rowById.get(m.id)}
+							{@const cur = partial ? (overrides[m.id] ?? partial.prices) : null}
+							<li class="flex items-center gap-2 px-3 py-2" class:opacity-40={hidden}>
+								<span
+									class="cursor-grab px-1 text-lg text-[var(--ios-label-tertiary)] select-none"
+									aria-hidden="true">≡</span
+								>
+								<span class="flex-1 text-[var(--ios-label)]" class:line-through={hidden}>{m.name}</span>
+								<div class="flex items-center gap-1 text-sm tabular-nums">
+									{#if partial && cur}
+										{#each partial.columns as col, ci (col)}
 											{@const v = cur[ci]}
-											<td class="px-2 py-2 text-center">
+											<span class="flex w-14 items-center justify-end gap-0.5">
 												{#if v != null}
-													<div class="flex items-center justify-center gap-0.5">
-														{#if ci > 0 && cur[ci - 1] == null}
-															<button
-																type="button"
-																class="flex h-7 w-7 items-center justify-center rounded-full text-lg text-[var(--ios-blue)] active:bg-[var(--ios-fill)]"
-																aria-label={`Move ${p.name} ${col} price left`}
-																onclick={() => move(p.key, p.prices, ci, ci - 1)}>‹</button
-															>
-														{/if}
-														<span class="tabular-nums text-[var(--ios-label)]">{formatBaht(v)}</span
+													{#if ci > 0 && cur[ci - 1] == null}
+														<button
+															type="button"
+															class="flex h-6 w-6 items-center justify-center rounded-full text-[var(--ios-blue)] active:bg-[var(--ios-fill)]"
+															aria-label={`Move ${m.name} ${col} price left`}
+															onclick={() => move(m.id, partial.prices, ci, ci - 1)}>‹</button
 														>
-														{#if ci < p.columns.length - 1 && cur[ci + 1] == null}
-															<button
-																type="button"
-																class="flex h-7 w-7 items-center justify-center rounded-full text-lg text-[var(--ios-blue)] active:bg-[var(--ios-fill)]"
-																aria-label={`Move ${p.name} ${col} price right`}
-																onclick={() => move(p.key, p.prices, ci, ci + 1)}>›</button
-															>
-														{/if}
-													</div>
-												{:else if unplaced && single != null}
+													{/if}
+													<span class="text-[var(--ios-label)]">{formatBaht(v)}</span>
+													{#if ci < partial.columns.length - 1 && cur[ci + 1] == null}
+														<button
+															type="button"
+															class="flex h-6 w-6 items-center justify-center rounded-full text-[var(--ios-blue)] active:bg-[var(--ios-fill)]"
+															aria-label={`Move ${m.name} ${col} price right`}
+															onclick={() => move(m.id, partial.prices, ci, ci + 1)}>›</button
+														>
+													{/if}
+												{:else if partial.single != null && cur.every((x) => x == null)}
 													<button
 														type="button"
-														class="rounded px-1.5 py-1 text-xs text-[var(--ios-label-tertiary)] underline decoration-dotted active:bg-[var(--ios-fill)]"
-														aria-label={`Place ${p.name} price in ${col}`}
-														onclick={() => place(p, ci, single)}>{formatBaht(single)}</button
+														class="rounded px-1 text-xs text-[var(--ios-label-tertiary)] underline decoration-dotted active:bg-[var(--ios-fill)]"
+														aria-label={`Place ${m.name} price in ${col}`}
+														onclick={() => place(partial, ci, partial.single ?? 0)}
+														>{formatBaht(partial.single)}</button
 													>
 												{:else}
 													<span class="text-[var(--ios-label-tertiary)]">·</span>
 												{/if}
-											</td>
+											</span>
 										{/each}
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				</Card>
-			</div>
-		{/if}
+										{#if m.id in overrides}
+											<button
+												type="button"
+												class="text-xs text-[var(--ios-blue)]"
+												onclick={() => clearRow(m.id)}>Reset</button
+											>
+										{/if}
+									{:else if info}
+										{#if info.columns.length === 0}
+											<span class="w-14 text-right text-[var(--ios-label-secondary)]"
+												>{info.row.single == null ? '' : formatBaht(info.row.single)}</span
+											>
+										{:else}
+											{#each info.columns as _c, ci (ci)}
+												<span class="w-14 text-right text-[var(--ios-label-secondary)]"
+													>{info.row.prices[ci] == null ? '·' : formatBaht(info.row.prices[ci]!)}</span
+												>
+											{/each}
+										{/if}
+									{/if}
+								</div>
+								<button
+									type="button"
+									class="flex h-8 w-8 items-center justify-center rounded-full active:bg-[var(--ios-fill)]"
+									aria-label={hidden ? `Show ${m.name} in PDF` : `Hide ${m.name} from PDF`}
+									aria-pressed={hidden}
+									onclick={() => toggleExcluded(m.id)}>{hidden ? '🚫' : '👁'}</button
+								>
+							</li>
+						{/each}
+					</ul>
+				{/each}
+			</Card>
+		</div>
 
 		<div>
 			<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">Preview</p>
