@@ -166,12 +166,13 @@
 		</div>
 		<Card padded={false}>
 			<div class="overflow-x-auto">
-				<table class="w-full min-w-[680px] text-sm">
+				<table class="w-full min-w-[800px] text-sm">
 					<thead>
 						<tr
 							class="border-b border-[var(--ios-separator)] text-left text-xs text-[var(--ios-label-secondary)]"
 						>
-							<th class="px-3 py-2 font-medium">Date</th>
+							<th class="px-3 py-2 font-medium">Created</th>
+							<th class="px-3 py-2 font-medium">Paid at</th>
 							<th class="px-3 py-2 font-medium">Code</th>
 							<th class="px-3 py-2 font-medium">Status</th>
 							<th class="px-3 py-2 text-right font-medium">Items</th>
@@ -189,6 +190,9 @@
 							>
 								<td class="px-3 py-2 whitespace-nowrap text-[var(--ios-label)]"
 									>{dt(o.created_at)}</td
+								>
+								<td class="px-3 py-2 whitespace-nowrap text-[var(--ios-label)]"
+									>{o.paid_at ? dt(o.paid_at) : '—'}</td
 								>
 								<td class="px-3 py-2 font-mono text-[var(--ios-label)]">{o.code}</td>
 								<td class="px-3 py-2 text-[var(--ios-label-secondary)]">{o.status}</td>
@@ -208,7 +212,7 @@
 							</tr>
 							{#if expanded.has(o.code)}
 								<tr class="border-b border-[var(--ios-separator)] bg-[var(--ios-fill)]">
-									<td colspan="8" class="px-4 py-3">
+									<td colspan="9" class="px-4 py-3">
 										<div class="space-y-2 text-sm">
 											{#if o.member_name || o.member_phone}
 												<p class="text-[var(--ios-label-secondary)]">

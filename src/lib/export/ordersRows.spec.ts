@@ -6,6 +6,7 @@ const sample: OrderRow = {
 	code: 'AAA',
 	status: 'paid',
 	created_at: '2026-06-14T15:13:40+07:00',
+	paid_at: '2026-06-14T15:16:40+07:00',
 	member_name: 'Cream',
 	member_phone: '08',
 	points_earned: 9,
@@ -36,6 +37,12 @@ describe('ordersToRows', () => {
 		expect(r.net).toBe(70);
 		expect(r.date instanceof Date).toBe(true);
 		expect(r.date.getTime()).toBe(new Date('2026-06-14T15:13:40+07:00').getTime());
+		expect(r.paidAt instanceof Date).toBe(true);
+		expect(r.paidAt?.getTime()).toBe(new Date('2026-06-14T15:16:40+07:00').getTime());
+	});
+	it('maps a null paid_at to null', () => {
+		const r = ordersToRows([{ ...sample, paid_at: null }])[0];
+		expect(r.paidAt).toBeNull();
 	});
 	it('maps an empty list to no rows', () => {
 		expect(ordersToRows([])).toEqual([]);

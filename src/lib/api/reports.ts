@@ -19,6 +19,7 @@ export interface OrderRow {
 	code: string;
 	status: string;
 	created_at: string;
+	paid_at: string | null;
 	member_name: string;
 	member_phone: string;
 	points_earned: number;

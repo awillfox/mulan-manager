@@ -25,6 +25,7 @@ function mk(code: string): OrderRow {
 		code,
 		status: 'paid',
 		created_at: '',
+		paid_at: null,
 		member_name: '',
 		member_phone: '',
 		points_earned: 0,

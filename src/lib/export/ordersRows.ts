@@ -2,6 +2,7 @@ import type { OrderRow } from '$lib/api/reports';
 
 export interface ExportRow {
 	date: Date;
+	paidAt: Date | null;
 	code: string;
 	status: string;
 	member: string;
@@ -17,6 +18,7 @@ export interface ExportRow {
 export function ordersToRows(orders: OrderRow[]): ExportRow[] {
 	return orders.map((o) => ({
 		date: new Date(o.created_at),
+		paidAt: o.paid_at ? new Date(o.paid_at) : null,
 		code: o.code,
 		status: o.status,
 		member: o.member_name,

@@ -12,9 +12,17 @@ export async function exportOrdersXlsx(orders: OrderRow[], fileName: string): Pr
 	// `cell` returns a cell object with `value`, `type`, and `format`.
 	const columns = [
 		{
-			header: 'Date',
+			header: 'Created',
 			width: 16,
 			cell: (r: ExportRow) => ({ value: r.date, type: Date, format: 'dd/mm/yyyy hh:mm' })
+		},
+		{
+			header: 'Paid at',
+			width: 16,
+			cell: (r: ExportRow) =>
+				r.paidAt
+					? { value: r.paidAt, type: Date, format: 'dd/mm/yyyy hh:mm' }
+					: { value: null, type: Date }
 		},
 		{
 			header: 'Code',
