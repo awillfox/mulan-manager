@@ -216,7 +216,7 @@
 													{o.member_phone} · {o.points_earned} pts
 												</p>
 											{/if}
-											{#each o.line_items as li (li.name + li.base_option_name)}
+											{#each o.line_items as li, li_i (li_i)}
 												<div>
 													<div class="flex justify-between">
 														<span class="text-[var(--ios-label)]">
@@ -228,7 +228,7 @@
 															>{baht(li.price)}</span
 														>
 													</div>
-													{#each li.options as op (op.name)}
+													{#each li.options as op, op_i (op_i)}
 														<div
 															class="flex justify-between pl-4 text-[var(--ios-label-secondary)]"
 														>
@@ -239,7 +239,7 @@
 													{/each}
 												</div>
 											{/each}
-											{#each o.discounts as d (d.name)}
+											{#each o.discounts as d, d_i (d_i)}
 												<div class="flex justify-between text-[var(--ios-label-secondary)]">
 													<span>{d.is_subsidy ? 'Subsidy' : 'Discount'}: {d.name}</span>
 													<span class="font-mono">{baht(d.amount)}</span>
