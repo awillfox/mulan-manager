@@ -9,7 +9,13 @@
 	import SalesChart from '$lib/components/charts/SalesChart.svelte';
 	import Donut from '$lib/components/charts/Donut.svelte';
 	import { baht } from '$lib/format';
-	import { presetRange, type Preset } from '$lib/dashboard/range';
+	import {
+		presetRange,
+		customRange,
+		MAX_RANGE_DAYS,
+		type Preset,
+		type Range
+	} from '$lib/dashboard/range';
 	import { deltaPct, deltaLabel } from '$lib/dashboard/delta';
 	import { loadDashboard, type DashboardData } from '$lib/dashboard/api';
 	import { onMount } from 'svelte';
@@ -23,15 +29,18 @@
 	];
 
 	let preset = $state('7d');
+	let customFrom = $state('');
+	let customTo = $state('');
+	let rangeError = $state('');
 	let data = $state<DashboardData | null>(null);
 	let loading = $state(true);
 	let errored = $state(false);
 
-	async function load(p: string) {
+	async function load(range: Range) {
 		loading = true;
 		errored = false;
 		try {
-			data = await loadDashboard(presetRange(p as Preset, new Date()));
+			data = await loadDashboard(range);
 		} catch {
 			errored = true;
 		} finally {
@@ -39,8 +48,35 @@
 		}
 	}
 
+	// Resolve the active window: a complete custom range wins over the preset.
+	// An invalid one explains itself and leaves the last good data on screen
+	// rather than blanking the dashboard mid-edit.
+	function reload() {
+		if (customFrom && customTo) {
+			const range = customRange(customFrom, customTo);
+			if (!range) {
+				rangeError =
+					customFrom > customTo
+						? 'End date must be on or after the start date.'
+						: `Range can't exceed ${MAX_RANGE_DAYS} days.`;
+				loading = false;
+				return;
+			}
+			rangeError = '';
+			load(range);
+			return;
+		}
+		rangeError = '';
+		load(presetRange(preset as Preset, new Date()));
+	}
+
+	// Refetch whenever any filter changes. Read each dep explicitly so the effect
+	// tracks them. customFrom/customTo only take effect once BOTH are set.
 	$effect(() => {
-		load(preset);
+		void preset;
+		void customFrom;
+		void customTo;
+		reload();
 	});
 
 	// Wake / keep-warm the bookyman-remote music player on each dashboard visit.
@@ -61,6 +97,31 @@
 
 <div class="space-y-4 px-4 pt-2 pb-6">
 	<SegmentedControl options={presets} bind:value={preset} />
+	<div class="flex items-center gap-2 text-sm">
+		<input
+			type="date"
+			bind:value={customFrom}
+			class="rounded-lg border border-[var(--ios-separator)] bg-[var(--ios-card)] px-2 py-1 text-[var(--ios-label)]"
+		/>
+		<span class="text-[var(--ios-label-secondary)]">→</span>
+		<input
+			type="date"
+			bind:value={customTo}
+			class="rounded-lg border border-[var(--ios-separator)] bg-[var(--ios-card)] px-2 py-1 text-[var(--ios-label)]"
+		/>
+		{#if customFrom || customTo}
+			<button
+				class="text-[var(--ios-blue)]"
+				onclick={() => {
+					customFrom = '';
+					customTo = '';
+				}}>Clear</button
+			>
+		{/if}
+	</div>
+	{#if rangeError}
+		<p class="px-1 text-sm text-[var(--ios-red)]">{rangeError}</p>
+	{/if}
 
 	{#if loading && !data}
 		<Spinner />
@@ -107,14 +168,14 @@
 		</div>
 
 		<div>
-			<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">Top items</p>
-			{#if data.topMenus.length === 0}
+			<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">All items</p>
+			{#if data.allItems.length === 0}
 				<Card><p class="text-[var(--ios-label-secondary)]">No sales yet.</p></Card>
 			{:else}
 				<Card padded={false}>
-					{#each data.topMenus as m, i (m.name)}
+					{#each data.allItems as m, i (m.name)}
 						<div
-							class="flex items-center justify-between px-4 py-3 {i < data.topMenus.length - 1
+							class="flex items-center justify-between px-4 py-3 {i < data.allItems.length - 1
 								? 'border-b border-[var(--ios-separator)]'
 								: ''}"
 						>

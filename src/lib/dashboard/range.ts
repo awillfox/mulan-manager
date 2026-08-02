@@ -1,6 +1,4 @@
-export type Preset = 'today' | '7d' | '30d' | '90d' | 'custom';
-/** The presets that map to a fixed number of days back from today. */
-export type FixedPreset = Exclude<Preset, 'custom'>;
+export type Preset = 'today' | '7d' | '30d' | '90d';
 export interface Range {
 	from: string; // inclusive ISO yyyy-mm-dd (shop-local)
 	to: string; // inclusive ISO yyyy-mm-dd
@@ -9,7 +7,7 @@ export interface Range {
 /** Mirrors maxRangeDays in ../mulan/internal/dashboard/http/handler.go. */
 export const MAX_RANGE_DAYS = 366;
 
-const PRESET_DAYS: Record<FixedPreset, number> = { today: 0, '7d': 6, '30d': 29, '90d': 89 };
+const PRESET_DAYS: Record<Preset, number> = { today: 0, '7d': 6, '30d': 29, '90d': 89 };
 
 function isoDay(d: Date): string {
 	const y = d.getFullYear();
@@ -18,7 +16,7 @@ function isoDay(d: Date): string {
 	return `${y}-${m}-${day}`;
 }
 
-export function presetRange(preset: FixedPreset, today: Date): Range {
+export function presetRange(preset: Preset, today: Date): Range {
 	const to = isoDay(today);
 	const from = new Date(today);
 	from.setDate(from.getDate() - PRESET_DAYS[preset]);
