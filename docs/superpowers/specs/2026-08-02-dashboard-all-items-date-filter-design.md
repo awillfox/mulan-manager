@@ -18,10 +18,21 @@ Separately, the only way to pick a period is the four presets (Today / 7D / 30D 
    the "Item mix" donut. A new `/menu-items` endpoint returns the unlimited list
    for the section below. Rejected: sharing one unlimited response and slicing
    client-side for the donut — separate endpoints keep each consumer's contract
-   explicit.
-2. **Custom is a 5th segment.** The segmented control gains a `Custom` option
-   that reveals From/To date inputs. Presets stay one tap. The resolved range
-   drives *every* dashboard call, not just the items list — one period per screen.
+   explicit. Implementation detail: rather than a second SQL query and a copied
+   service method, the two endpoints share the existing query with its `LIMIT`
+   turned into a nullable parameter (`LIMIT NULL` = unbounded in Postgres),
+   behind shared `menuSales` / `menuList` helpers. The two endpoints remain
+   separate at the route level, which is what this decision requires.
+2. **Always-visible From/To row, not a 5th segment.** Mid-implementation this
+   was changed from the originally planned `Custom` segment (which would have
+   revealed date inputs only when selected) to a `from → to` date row that is
+   always visible below the segmented control, matching the pre-existing
+   idiom already used in `src/routes/(app)/orders/+page.svelte`. Consistency
+   with that existing pattern was the reason for the change. Setting **both**
+   dates overrides the preset for every dashboard call; clearing **either**
+   date falls back to the preset window. A `Clear` button resets both fields
+   at once. The segmented control keeps its original four presets — there is
+   no `Custom` option.
 3. **No search or sort controls.** The list renders everything in the existing
    qty-descending order from SQL. YAGNI until a long list actually proves painful.
 4. **Raise the range cap to 366 days.** `maxRangeDays` in the Go dashboard
@@ -71,13 +82,12 @@ already contains the `dashboard` prefix.
 
 ### `src/lib/dashboard/range.ts`
 
-- Widen `Preset` to `'today' | '7d' | '30d' | '90d' | 'custom'` and add
-  `type FixedPreset = Exclude<Preset, 'custom'>`.
-- Re-key `PRESET_DAYS` as `Record<FixedPreset, number>` and narrow
-  `presetRange(preset: FixedPreset, today: Date)` — `'custom'` has no day count,
-  so the type system, not a runtime check, keeps it out.
-- Add `MAX_RANGE_DAYS = 366`.
-- Add:
+- `Preset` is unchanged: `'today' | '7d' | '30d' | '90d'`. There is no
+  `'custom'` member and no `FixedPreset` alias — those were added during
+  implementation for the originally planned segment, then reverted when the
+  design changed to the always-visible date row.
+- `customRange` and `MAX_RANGE_DAYS = 366` are the only additions to this file.
+  Add:
 
 ```ts
 export function customRange(from: string, to: string): Range | null
@@ -100,18 +110,29 @@ empty to; reversed range; exactly 366 days accepted; 367 days rejected.
 
 ### `src/routes/(app)/+page.svelte`
 
-- `presets` array gains `{ label: 'Custom', value: 'custom' }`.
-- New state: `customFrom` / `customTo`, both initialised to the current 7D range
-  so switching to Custom starts from something sensible rather than blank.
-- The load `$effect` resolves the active range:
-  - `preset === 'custom'` → `customRange(customFrom, customTo)`; if `null`, set a
-    `rangeError` message and return without fetching (leaving the previous data
-    on screen).
-  - otherwise → `presetRange(preset as FixedPreset, new Date())`, clearing
-    `rangeError`.
-- When `preset === 'custom'`, render a row of two `<input type="date">` bound to
-  `customFrom` / `customTo`, labelled From and To, styled with existing tokens
-  (`--ios-card`, `--ios-separator`, `--ios-label`) and ≥44px tall.
+- `presets` array is unchanged — still the original four presets, no `Custom`
+  option.
+- New state: `customFrom` / `customTo`, both initialised to `''` (blank), not
+  to the current 7D range. Blank is required for the "clearing either falls
+  back to the preset" semantics below — a non-blank default would make it
+  impossible to tell "user cleared this field" from "field never touched".
+- A `from → to` row of two `<input type="date">` bound to `customFrom` /
+  `customTo` is always visible below the segmented control (not conditional
+  on any preset), styled with existing tokens (`--ios-card`, `--ios-separator`,
+  `--ios-label`) and matching the idiom already used in
+  `src/routes/(app)/orders/+page.svelte`. A `Clear` button appears next to the
+  inputs whenever either field is non-empty; clicking it resets both
+  `customFrom` and `customTo` to `''`.
+- The load `$effect` resolves the active range via `reload()`:
+  - Both `customFrom` and `customTo` set → `customRange(customFrom, customTo)`
+    overrides the preset. If it returns `null` (reversed order or >366 days),
+    set a `rangeError` message and return without fetching, leaving the
+    previous state on screen.
+  - Either field blank → falls back to `presetRange(preset as Preset, new
+    Date())`, clearing `rangeError`. This is the "clearing either falls back
+    to the preset" behavior: a custom range only takes effect once both ends
+    are filled in, and clearing one end (or hitting `Clear`) immediately
+    reverts to the active preset.
 - `rangeError`, when set, renders as inline `text-[var(--ios-red)]` text under the inputs
   (e.g. "End date must be on or after the start date." /
   "Range can't exceed 366 days.").
@@ -129,10 +150,12 @@ empty to; reversed range; exactly 366 days accepted; 367 days rejected.
 3. Against the live backend (`BACKEND_URL=http://100.86.43.70:8085`): load the
    dashboard, confirm the All items list is longer than 10 rows on a 90D range
    while the donut still shows at most 10 slices.
-4. Pick a Custom range spanning ~6 months; confirm data loads (no 400) and the
-   KPI cards, charts, and list all reflect that range.
+4. Fill in both From and To spanning ~6 months; confirm data loads (no 400) and
+   the KPI cards, charts, and list all reflect that range, overriding whatever
+   preset was previously selected.
 5. Set To earlier than From; confirm the inline message appears and no request
-   fires.
+   fires. Then clear either field and confirm the dashboard falls back to the
+   active preset's window, and that `Clear` resets both fields at once.
 
 ## Out of scope
 

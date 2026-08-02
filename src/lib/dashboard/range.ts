@@ -33,6 +33,7 @@ export function customRange(from: string, to: string): Range | null {
 	if (!from || !to) return null;
 	if (from > to) return null;
 	const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000 + 1;
+	if (Number.isNaN(days)) return null;
 	if (days > MAX_RANGE_DAYS) return null;
 	return { from, to };
 }

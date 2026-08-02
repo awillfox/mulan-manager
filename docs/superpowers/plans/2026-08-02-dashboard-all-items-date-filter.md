@@ -895,11 +895,12 @@ BACKEND_URL=http://100.86.43.70:8085 npm run dev
 
 Open the dashboard and confirm each of:
 - 90D preset: the "All items" list shows more than 10 rows; the "Item mix" donut still shows at most 10 slices.
-- Tap **Custom**: two date inputs appear, prefilled with the last 7 days, and the dashboard loads that range.
-- Set From to ~6 months back: KPI cards, waterfall, sales chart, heatmap, donut, and the items list all refresh to the wider range with no error banner.
-- Set To earlier than From: "End date must be on or after the start date." appears, the previous data stays on screen, and the Network tab shows **no** new `/api/dashboard/*` requests.
+- The `from → to` date row is visible immediately, below the segmented control, and both fields start blank — there is no `Custom` segment to tap.
+- Set both From and To to a range spanning ~6 months back: KPI cards, waterfall, sales chart, heatmap, donut, and the items list all refresh to that range with no error banner, overriding whichever preset was previously selected.
+- Set To earlier than From: "End date must be on or after the start date." appears, no good data was on screen already so the dashboard shows the range error alone (not also the "Couldn't load data" empty state), and the Network tab shows **no** new `/api/dashboard/*` requests.
 - Set a range wider than 366 days: "Range can't exceed 366 days." appears, again with no request fired.
-- Tap back to 7D: the date inputs disappear and the dashboard reloads the preset range.
+- Clear just one of the two fields (leaving the other filled): the inline error clears and the dashboard reloads the currently selected preset's window.
+- Click **Clear**: both fields reset to blank and the dashboard reloads the currently selected preset's window.
 
 - [ ] **Step 5: Report results**
 

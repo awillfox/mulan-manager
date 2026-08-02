@@ -50,4 +50,7 @@ describe('customRange', () => {
 	it('rejects 367 inclusive days', () => {
 		expect(customRange('2025-08-02', '2026-08-03')).toBeNull();
 	});
+	it('rejects a malformed date string', () => {
+		expect(customRange('not-a-date', '2026-08-01')).toBeNull();
+	});
 });

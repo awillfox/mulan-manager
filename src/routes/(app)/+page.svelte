@@ -60,6 +60,7 @@
 						? 'End date must be on or after the start date.'
 						: `Range can't exceed ${MAX_RANGE_DAYS} days.`;
 				loading = false;
+				errored = false;
 				return;
 			}
 			rangeError = '';
