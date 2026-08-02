@@ -13,17 +13,19 @@ export interface DashboardData {
 	salesByDay: DayPoint[];
 	heatmap: HeatmapCell[];
 	topMenus: TopMenu[];
+	allItems: TopMenu[];
 	subsidies: SubsidyProgram[];
 }
 
 export async function loadDashboard(range: Range): Promise<DashboardData> {
 	const qs = `from=${range.from}&to=${range.to}`;
-	const [compare, salesByDay, heatmap, topMenus, subsidies] = await Promise.all([
+	const [compare, salesByDay, heatmap, topMenus, allItems, subsidies] = await Promise.all([
 		get<CompareResult>(`/api/dashboard/compare?${qs}`),
 		get<DayPoint[]>(`/api/dashboard/sales-by-day?${qs}`),
 		get<HeatmapCell[]>(`/api/dashboard/heatmap?${qs}`),
 		get<TopMenu[]>(`/api/dashboard/top-menus?${qs}`),
+		get<TopMenu[]>(`/api/dashboard/menu-items?${qs}`),
 		get<SubsidyProgram[]>(`/api/dashboard/subsidies?${qs}`)
 	]);
-	return { compare, salesByDay, heatmap, topMenus, subsidies };
+	return { compare, salesByDay, heatmap, topMenus, allItems, subsidies };
 }
