@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the Dashboard's 10-row "Top items" section with an unlimited "All items" list, and add a Custom date-range option alongside the Today/7D/30D/90D presets.
+**Goal:** Replace the Dashboard's 10-row "Top items" section with an unlimited "All items" list, and add a custom date-range filter alongside the Today/7D/30D/90D presets.
 
-**Architecture:** The Go backend (`../mulan`) gains a second, unlimited menu-items query and endpoint (`GET /dashboard/menu-items`) so the existing `LIMIT 10` `/top-menus` endpoint can keep feeding the Item mix donut untouched, and its range cap rises from 92 to 366 days. The SvelteKit frontend adds a pure `customRange()` validator to the dashboard range module, fetches the new endpoint into `DashboardData.allItems`, and renders a fifth `Custom` segment that reveals two `<input type="date">` fields driving every dashboard call.
+**Architecture:** The Go backend (`../mulan`) exposes a second endpoint `GET /dashboard/menu-items` that reuses the menu-sales query with a nullable `LIMIT`, so `/top-menus` keeps feeding the Item mix donut its capped top-10 while the new endpoint returns everything; the handler's range cap rises from 92 to 366 days. The SvelteKit frontend adds a pure `customRange()` validator to the dashboard range module, fetches the new endpoint into `DashboardData.allItems`, and renders an always-visible `from → to` date row — matching the idiom already used by `orders/+page.svelte` — whose resolved range drives every dashboard call.
 
 **Tech Stack:** Go 1.x + chi + sqlc + pgx (backend); SvelteKit 2 + Svelte 5 runes + TypeScript + Tailwind v4 + vitest (frontend).
 
@@ -125,6 +125,7 @@ git commit -m "feat(dashboard): raise range cap from 92 to 366 days"
 ```
 
 ---
+
 ### Task 2: Make the menu-sales query's LIMIT a nullable parameter
 
 **Files:**
@@ -634,50 +635,78 @@ git commit -m "feat(dashboard): fetch unlimited menu items into DashboardData"
 
 ---
 
-### Task 7: Render the Custom segment and All items list
+### Task 7: Render the date-range row and All items list
 
 **Files:**
+- Modify: `/home/nate/Dev/mulan-manager/src/lib/dashboard/range.ts` (revert the `Preset` widening)
 - Modify: `/home/nate/Dev/mulan-manager/src/routes/(app)/+page.svelte`
 
 **Interfaces:**
-- Consumes: `presetRange`, `customRange`, `type FixedPreset` from Task 5; `DashboardData.allItems` from Task 6.
+- Consumes: `presetRange`, `customRange`, `MAX_RANGE_DAYS`, `type Preset`, `type Range` from Task 5; `DashboardData.allItems` from Task 6.
 - Produces: the finished UI. Nothing downstream depends on it.
 
-Context: the page holds `preset = $state('7d')`, `data`, `loading`, `errored`, and an `$effect` that calls `load(preset)`. `SegmentedControl` takes `options: {label, value}[]` and `bind:value`. The "Top items" section spans lines 109-128; the Item mix donut at line 103 keeps reading `data.topMenus` and must not be touched.
+**Design change from the original plan — read this before you start.**
 
-Design notes for the implementer:
-- Reading `customFrom` / `customTo` inside the `$effect` is what makes editing a date re-trigger the load — that's intended, not accidental.
-- Keep stale `data` on screen when a custom range is invalid; only show the message. Blanking the dashboard while someone is mid-edit of a date field is worse than showing the previous period.
-- `<input type="date">` is used deliberately: it opens the native iOS date wheel, which is the right control on a phone-first page and needs no new component.
+The original plan added a fifth `Custom` segment that revealed the date inputs. That was written without knowing that `src/routes/(app)/orders/+page.svelte` **already implements this exact feature** with a different, established idiom. The human partner ruled that the Dashboard must match Orders rather than invent a second pattern. So:
 
-- [ ] **Step 1: Update the imports and script state**
+- **No `Custom` segment.** The presets array stays at four entries.
+- The date row is **always visible**, sitting directly under the segmented control.
+- Setting **both** dates overrides the preset; clearing either falls back to the preset.
+- A `Clear` button appears when either date is set.
+
+Read `src/routes/(app)/orders/+page.svelte` (its `presets`, `range()`, the `$effect` around line 105, and the date-row markup around line 119) before writing anything. That file is your reference for markup, class strings, and comment idiom. Match it.
+
+Because there is no longer a `'custom'` preset value, the `Preset` union widening and the `FixedPreset` alias added in Task 5 are now dead — this task removes them. That is also what repairs the two `npm run check` errors currently outstanding in `+page.svelte` and `orders/+page.svelte`: reverting the narrowing fixes both call sites without editing `orders/+page.svelte` at all. **Do not edit `orders/+page.svelte`.**
+
+`customRange` and `MAX_RANGE_DAYS` stay exactly as Task 5 built them — only the `Preset`/`FixedPreset` change is reverted.
+
+- [ ] **Step 1: Revert the Preset widening in range.ts**
+
+In `/home/nate/Dev/mulan-manager/src/lib/dashboard/range.ts`, restore the original union and drop the alias:
+
+```ts
+export type Preset = 'today' | '7d' | '30d' | '90d';
+```
+
+Delete the `FixedPreset` line entirely. Change `PRESET_DAYS` back to `Record<Preset, number>` and `presetRange`'s signature back to:
+
+```ts
+export function presetRange(preset: Preset, today: Date): Range {
+```
+
+Leave `Range`, `MAX_RANGE_DAYS`, `isoDay`, the `PRESET_DAYS` values, and all of `customRange` untouched.
+
+- [ ] **Step 2: Verify the type errors are gone and the specs still pass**
+
+```bash
+cd /home/nate/Dev/mulan-manager
+npm run check && npx vitest run src/lib/dashboard/range.spec.ts
+```
+
+Expected: `check` reports **0 errors** (both the `+page.svelte` and `orders/+page.svelte` `FixedPreset` errors disappear), and all 11 range specs still PASS. If `orders/+page.svelte` still errors, stop — you reverted something incompletely.
+
+- [ ] **Step 3: Rewrite the dashboard page's script block**
 
 In `/home/nate/Dev/mulan-manager/src/routes/(app)/+page.svelte`, change the range import to:
 
 ```ts
-	import { presetRange, customRange, type FixedPreset } from '$lib/dashboard/range';
+	import {
+		presetRange,
+		customRange,
+		MAX_RANGE_DAYS,
+		type Preset,
+		type Range
+	} from '$lib/dashboard/range';
 ```
 
-Add `Custom` to the presets array:
+Leave the `presets` array at its existing four entries — do not add a fifth.
+
+Replace the state declarations and the `load`/`$effect` block with:
 
 ```ts
-	const presets = [
-		{ label: 'Today', value: 'today' },
-		{ label: '7D', value: '7d' },
-		{ label: '30D', value: '30d' },
-		{ label: '90D', value: '90d' },
-		{ label: 'Custom', value: 'custom' }
-	];
-```
-
-Replace the state declarations and `load`/`$effect` block (currently lines 25-44) with:
-
-```ts
-	const initial = presetRange('7d', new Date());
-
 	let preset = $state('7d');
-	let customFrom = $state(initial.from);
-	let customTo = $state(initial.to);
+	let customFrom = $state('');
+	let customTo = $state('');
 	let rangeError = $state('');
 	let data = $state<DashboardData | null>(null);
 	let loading = $state(true);
@@ -695,14 +724,15 @@ Replace the state declarations and `load`/`$effect` block (currently lines 25-44
 		}
 	}
 
-	$effect(() => {
-		if (preset === 'custom') {
+	// Resolve the active window: a complete custom range wins over the preset.
+	// An invalid one explains itself and leaves the last good data on screen
+	// rather than blanking the dashboard mid-edit.
+	function reload() {
+		if (customFrom && customTo) {
 			const range = customRange(customFrom, customTo);
 			if (!range) {
-				// Keep the last good data on screen; just explain why we didn't refetch.
-				rangeError = !customFrom || !customTo
-					? 'Pick both a start and an end date.'
-					: customFrom > customTo
+				rangeError =
+					customFrom > customTo
 						? 'End date must be on or after the start date.'
 						: `Range can't exceed ${MAX_RANGE_DAYS} days.`;
 				loading = false;
@@ -713,57 +743,58 @@ Replace the state declarations and `load`/`$effect` block (currently lines 25-44
 			return;
 		}
 		rangeError = '';
-		load(presetRange(preset as FixedPreset, new Date()));
+		load(presetRange(preset as Preset, new Date()));
+	}
+
+	// Refetch whenever any filter changes. Read each dep explicitly so the effect
+	// tracks them. customFrom/customTo only take effect once BOTH are set.
+	$effect(() => {
+		void preset;
+		void customFrom;
+		void customTo;
+		reload();
 	});
 ```
 
-`load` now takes a resolved `Range` instead of a preset string. Add `MAX_RANGE_DAYS` and `type Range` to the same range import:
+Note `load` now takes a resolved `Range` rather than a preset string. The `void`-then-call pattern and its comment are lifted from `orders/+page.svelte` deliberately — keep them.
 
-```ts
-	import {
-		presetRange,
-		customRange,
-		MAX_RANGE_DAYS,
-		type FixedPreset,
-		type Range
-	} from '$lib/dashboard/range';
-```
-
-- [ ] **Step 2: Render the date inputs**
+- [ ] **Step 4: Add the date row markup**
 
 Immediately after `<SegmentedControl options={presets} bind:value={preset} />`, insert:
 
 ```svelte
-	{#if preset === 'custom'}
-		<div class="grid grid-cols-2 gap-3">
-			<label class="block">
-				<span class="mb-1 block px-1 text-xs text-[var(--ios-label-secondary)]">From</span>
-				<input
-					type="date"
-					bind:value={customFrom}
-					class="h-11 w-full rounded-xl border border-[var(--ios-separator)] bg-[var(--ios-card)] px-3 text-[var(--ios-label)]"
-				/>
-			</label>
-			<label class="block">
-				<span class="mb-1 block px-1 text-xs text-[var(--ios-label-secondary)]">To</span>
-				<input
-					type="date"
-					bind:value={customTo}
-					class="h-11 w-full rounded-xl border border-[var(--ios-separator)] bg-[var(--ios-card)] px-3 text-[var(--ios-label)]"
-				/>
-			</label>
-		</div>
-		{#if rangeError}
-			<p class="px-1 text-sm text-[var(--ios-red)]">{rangeError}</p>
+	<div class="flex items-center gap-2 text-sm">
+		<input
+			type="date"
+			bind:value={customFrom}
+			class="rounded-lg border border-[var(--ios-separator)] bg-[var(--ios-card)] px-2 py-1 text-[var(--ios-label)]"
+		/>
+		<span class="text-[var(--ios-label-secondary)]">→</span>
+		<input
+			type="date"
+			bind:value={customTo}
+			class="rounded-lg border border-[var(--ios-separator)] bg-[var(--ios-card)] px-2 py-1 text-[var(--ios-label)]"
+		/>
+		{#if customFrom || customTo}
+			<button
+				class="text-[var(--ios-blue)]"
+				onclick={() => {
+					customFrom = '';
+					customTo = '';
+				}}>Clear</button
+			>
 		{/if}
+	</div>
+	{#if rangeError}
+		<p class="px-1 text-sm text-[var(--ios-red)]">{rangeError}</p>
 	{/if}
 ```
 
-`h-11` is 44px — the minimum touch target.
+The class strings are copied verbatim from the Orders page so the two filters look identical. Do not restyle them.
 
-- [ ] **Step 3: Switch the list to all items**
+- [ ] **Step 5: Switch the list to all items**
 
-Replace the "Top items" block (currently lines 109-128) with:
+Replace the "Top items" block with:
 
 ```svelte
 		<div>
@@ -788,22 +819,26 @@ Replace the "Top items" block (currently lines 109-128) with:
 		</div>
 ```
 
-Leave the "Item mix" `<Donut items={data.topMenus} />` block above it exactly as it is.
+Leave the "Item mix" `<Donut items={data.topMenus} />` block above it exactly as it is — the donut keeps its capped top-10 feed.
 
-- [ ] **Step 4: Check, lint, and run the unit suite**
+- [ ] **Step 6: Run the Svelte autofixer**
+
+You have a Svelte MCP server available. Run `svelte-autofixer` over the full contents of `src/routes/(app)/+page.svelte` and apply what it reports. Repeat until it returns no issues or suggestions. This catches Svelte 5 rune misuse that `svelte-check` alone can miss.
+
+- [ ] **Step 7: Check, lint, and run the unit suite**
 
 ```bash
 cd /home/nate/Dev/mulan-manager
-npm run check && npm run lint && npx vitest run
+npm run format && npm run check && npm run lint && npx vitest run
 ```
 
-Expected: `check` 0 errors; `lint` clean (run `npm run format` first if prettier complains about formatting); all vitest specs PASS.
+Expected: `check` 0 errors; `lint` clean; all vitest specs PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 cd /home/nate/Dev/mulan-manager
-git add "src/routes/(app)/+page.svelte"
+git add src/lib/dashboard/range.ts "src/routes/(app)/+page.svelte"
 git commit -m "feat(dashboard): custom date range and full item list"
 ```
 
@@ -882,10 +917,10 @@ Write up what actually happened for each check above, quoting the observed numbe
 - `Preset` widened, `customRange`, `MAX_RANGE_DAYS` → Task 5 ✓
 - `customRange` specs (valid / empty from / empty to / reversed / 366 / 367) → Task 5, plus a single-day case ✓
 - `DashboardData.allItems` + fetch → Task 6 ✓
-- Custom segment, date inputs, `rangeError`, "All items" heading and list, donut untouched → Task 7 ✓
+- Always-visible date row, `rangeError`, "All items" heading and list, donut untouched → Task 7 ✓ (Custom segment replaced by the Orders-page idiom per the human partner's ruling; the `'custom'` preset value and `FixedPreset` alias from Task 5 are reverted as dead)
 - Verification steps 1-5 from the spec → Task 8 ✓
 - No proxy `ALLOW` change, no `main.go` change → stated in Global Constraints ✓
 
 **De-duplication ruling (pre-flight):** the human partner ruled that `MenuItems` must NOT be a copy of `TopMenus`. Tasks 2-4 therefore share code at every layer: one SQL query with a nullable `row_limit`, one `menuSales` service helper, one `menuList` handler helper. The two endpoints stay separate at the route level, as the spec requires, but no logic block is duplicated.
 
-**Type consistency:** `TopMenuItem` (Go) and `TopMenu` (TS) are reused, not redefined. `TopMenusBySalesParams` gains exactly one field (`RowLimit pgtype.Int8`) in Task 2 and is constructed with that field in Task 3. `menuSales` and `menuList` are defined and consumed within Tasks 3 and 4 respectively. `FixedPreset`, `MAX_RANGE_DAYS`, `Range`, and `customRange` are defined in Task 5 and consumed under those exact names in Task 7. `load` changes signature from `(p: string)` to `(range: Range)` within a single task (7), so no cross-task mismatch.
+**Type consistency:** `TopMenuItem` (Go) and `TopMenu` (TS) are reused, not redefined. `TopMenusBySalesParams` gains exactly one field (`RowLimit pgtype.Int8`) in Task 2 and is constructed with that field in Task 3. `menuSales` and `menuList` are defined and consumed within Tasks 3 and 4 respectively. `MAX_RANGE_DAYS`, `Range`, and `customRange` are defined in Task 5 and consumed under those exact names in Task 7; `FixedPreset` is added in Task 5 and removed again in Task 7, leaving `Preset` at its original four values so `orders/+page.svelte` needs no edit. `load` changes signature from `(p: string)` to `(range: Range)` within a single task (7), so no cross-task mismatch.
