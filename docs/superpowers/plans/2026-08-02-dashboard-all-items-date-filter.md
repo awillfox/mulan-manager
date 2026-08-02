@@ -180,14 +180,14 @@ Expected: the struct now has three fields — `FromAt pgtype.Timestamptz`, `ToAt
 
 If sqlc instead generated `RowLimit interface{}` or `RowLimit int64`, STOP and report it — the rest of the plan assumes `pgtype.Int8`, whose zero value is SQL NULL.
 
-- [ ] **Step 4: Verify the build breaks where expected**
+- [ ] **Step 4: Verify the build still passes**
 
 ```bash
 cd /home/nate/Dev/mulan
-go build ./... 2>&1 | head
+go build ./...
 ```
 
-Expected: a compile error in `internal/dashboard/service/dashboard.go` — the existing `TopMenus` call site doesn't set the new field. That is fine and is **not** an error to fix here; Task 3 rewrites that call site. Do not patch it in this task.
+Expected: exits 0. The existing `TopMenus` call site uses a **keyed** struct literal, and Go lets keyed literals omit fields — so `RowLimit` silently zero-values to `pgtype.Int8{Valid: false}`, i.e. SQL NULL. The build stays green, but `TopMenus` is transiently unbounded until Task 3 sets the limit at that call site. Do **not** patch `internal/dashboard/service/dashboard.go` here; that is Task 3's work.
 
 - [ ] **Step 5: Commit**
 
@@ -197,7 +197,7 @@ git add internal/sql/dashboard.query.sql sqlc/dashboard.query.sql.go
 git commit -m "feat(dashboard): make menu-sales LIMIT a nullable parameter"
 ```
 
-Note: this commit leaves the tree not building. Task 3 restores it in the very next commit. That is deliberate — the generated code and its call site are separate concerns, and bisect-ability of a two-commit window is not worth conflating them.
+Note: this commit compiles but leaves `TopMenus` transiently unbounded, because nothing sets `RowLimit` yet. Task 3 restores the cap in the very next commit. Do not deploy this commit in isolation.
 
 ---
 
@@ -264,14 +264,16 @@ func (s *DashboardService) MenuItems(ctx context.Context, from, to time.Time) ([
 
 No new imports: `fmt`, `pgtype`, `sqlc`, and `time` are all already imported by this file.
 
-- [ ] **Step 2: Verify the build is restored**
+- [ ] **Step 2: Verify the build and the restored cap**
 
 ```bash
 cd /home/nate/Dev/mulan
 go build ./... && go vet ./internal/dashboard/...
 ```
 
-Expected: both exit 0, no output. (Task 2 deliberately left the build broken; this step is what proves it's fixed.)
+Expected: both exit 0, no output.
+
+Task 2 left `TopMenus` transiently unbounded — its call site omitted the new `RowLimit` field, which Go zero-values to SQL NULL. Setting `RowLimit: pgtype.Int8{Int64: topMenusLimit, Valid: true}` in the `TopMenus` wrapper above is what restores the cap of 10. Confirm that literal is present and `Valid: true`.
 
 - [ ] **Step 3: Verify no LIMIT literal remains in Go or SQL**
 
