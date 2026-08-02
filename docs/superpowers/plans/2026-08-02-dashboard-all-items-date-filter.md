@@ -125,27 +125,28 @@ git commit -m "feat(dashboard): raise range cap from 92 to 366 days"
 ```
 
 ---
-
-### Task 2: Add the unlimited MenuItemsBySales query
+### Task 2: Make the menu-sales query's LIMIT a nullable parameter
 
 **Files:**
-- Modify: `/home/nate/Dev/mulan/internal/sql/dashboard.query.sql` (append after the `TopMenusBySales` block, which ends at line 12)
+- Modify: `/home/nate/Dev/mulan/internal/sql/dashboard.query.sql:1-12` (the `TopMenusBySales` block)
 - Modify (generated, do not hand-edit): `/home/nate/Dev/mulan/sqlc/dashboard.query.sql.go`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
-- Produces: `(*Queries).MenuItemsBySales(ctx context.Context, arg sqlc.MenuItemsBySalesParams) ([]sqlc.MenuItemsBySalesRow, error)`, where `MenuItemsBySalesParams{FromAt, ToAt pgtype.Timestamptz}` and `MenuItemsBySalesRow{Name string; QtySold int64; Revenue int64}`. Task 3 calls this. **Revenue is satang (int64)** — the service divides by 100.
+- Produces: `(*Queries).TopMenusBySales(ctx context.Context, arg sqlc.TopMenusBySalesParams) ([]sqlc.TopMenusBySalesRow, error)` with `TopMenusBySalesParams` **gaining a third field** `RowLimit pgtype.Int8`. `TopMenusBySalesRow{Name string; QtySold int64; Revenue int64}` is unchanged. Task 3 calls this with `RowLimit` set to 10 for the donut and left invalid (SQL NULL) for the full list. **Revenue is satang (int64)** — the service divides by 100.
 
-Context: sqlc generates Go from `internal/sql/*.query.sql` into the `sqlc` package. The new query is `TopMenusBySales` verbatim minus its `LIMIT 10`. There is no unit test here — sqlc output is generated code, and the query is exercised end-to-end in Task 8. The verification for this task is that codegen produced the expected symbols and the module still builds.
+Context: sqlc generates Go from `internal/sql/*.query.sql` into the `sqlc` package. `TopMenusBySales` is the only query the dashboard uses for menu sales, and the service is its only caller.
 
-- [ ] **Step 1: Append the query**
+Rather than adding a second near-identical query, parameterise the existing one. **PostgreSQL treats `LIMIT NULL` as "no limit"** — so one query serves both the capped donut feed and the unbounded list. The explicit `::bigint` cast is required: without it sqlc cannot infer a type for the parameter and generates `interface{}`.
 
-Add to the end of `/home/nate/Dev/mulan/internal/sql/dashboard.query.sql`:
+- [ ] **Step 1: Parameterise the LIMIT**
+
+Replace the `TopMenusBySales` block at the top of `/home/nate/Dev/mulan/internal/sql/dashboard.query.sql` with:
 
 ```sql
--- name: MenuItemsBySales :many
--- Same aggregate as TopMenusBySales but unbounded: the manager dashboard's
--- "All items" list shows every item sold in the window, not just the top 10.
+-- name: TopMenusBySales :many
+-- row_limit NULL means "no limit" (Postgres treats LIMIT NULL as unbounded):
+-- the dashboard's item-mix donut passes 10, the "All items" list passes NULL.
 SELECT oi.name,
        SUM(oi.qty)::bigint              AS qty_sold,
        SUM(oi.price * oi.qty)::bigint   AS revenue
@@ -155,7 +156,8 @@ WHERE o.status = 'paid'
   AND o.created_at >= sqlc.arg('from_at')::timestamptz
   AND o.created_at < sqlc.arg('to_at')::timestamptz
 GROUP BY oi.name
-ORDER BY qty_sold DESC;
+ORDER BY qty_sold DESC
+LIMIT sqlc.narg('row_limit')::bigint;
 ```
 
 - [ ] **Step 2: Run codegen**
@@ -167,66 +169,71 @@ sqlc generate
 
 (Equivalent: `task sqlcgen`.) Expected: exits 0, no output.
 
-- [ ] **Step 3: Verify the generated symbols exist**
+- [ ] **Step 3: Verify the generated param type**
 
 ```bash
 cd /home/nate/Dev/mulan
-grep -n "func (q \*Queries) MenuItemsBySales\|type MenuItemsBySalesRow\|type MenuItemsBySalesParams" sqlc/dashboard.query.sql.go
+grep -n "type TopMenusBySalesParams" -A 6 sqlc/dashboard.query.sql.go
 ```
 
-Expected: three matching lines. Also confirm the generated SQL string has **no** `LIMIT`:
+Expected: the struct now has three fields — `FromAt pgtype.Timestamptz`, `ToAt pgtype.Timestamptz`, and `RowLimit pgtype.Int8`.
 
-```bash
-grep -n "const menuItemsBySales" -A 14 sqlc/dashboard.query.sql.go
-```
+If sqlc instead generated `RowLimit interface{}` or `RowLimit int64`, STOP and report it — the rest of the plan assumes `pgtype.Int8`, whose zero value is SQL NULL.
 
-Expected: the query text ends at `ORDER BY qty_sold DESC` with no `LIMIT` line.
-
-- [ ] **Step 4: Verify the module still builds**
+- [ ] **Step 4: Verify the build breaks where expected**
 
 ```bash
 cd /home/nate/Dev/mulan
-go build ./...
+go build ./... 2>&1 | head
 ```
 
-Expected: exits 0, no output.
+Expected: a compile error in `internal/dashboard/service/dashboard.go` — the existing `TopMenus` call site doesn't set the new field. That is fine and is **not** an error to fix here; Task 3 rewrites that call site. Do not patch it in this task.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /home/nate/Dev/mulan
 git add internal/sql/dashboard.query.sql sqlc/dashboard.query.sql.go
-git commit -m "feat(dashboard): add unlimited MenuItemsBySales query"
+git commit -m "feat(dashboard): make menu-sales LIMIT a nullable parameter"
 ```
+
+Note: this commit leaves the tree not building. Task 3 restores it in the very next commit. That is deliberate — the generated code and its call site are separate concerns, and bisect-ability of a two-commit window is not worth conflating them.
 
 ---
 
-### Task 3: Add the MenuItems service method
+### Task 3: Share one mapping helper between TopMenus and MenuItems
 
 **Files:**
-- Modify: `/home/nate/Dev/mulan/internal/dashboard/service/dashboard.go` (insert directly after `TopMenus`, which ends at line 193)
+- Modify: `/home/nate/Dev/mulan/internal/dashboard/service/dashboard.go:177-193` (replace the body of `TopMenus`; add `menuSales` and `MenuItems`)
 
 **Interfaces:**
-- Consumes: `sqlc.MenuItemsBySalesParams` / `MenuItemsBySalesRow` from Task 2.
-- Produces: `(*DashboardService).MenuItems(ctx context.Context, from, to time.Time) ([]TopMenuItem, error)`. Task 4's handler calls this. `TopMenuItem` already exists at `internal/dashboard/service/dashboard.go:46` as `{Name string \`json:"name"\`; QtySold int64 \`json:"qty_sold"\`; Revenue float64 \`json:"revenue"\`}` and is reused unchanged — that is what keeps the new endpoint's JSON identical to `/top-menus`.
+- Consumes: `sqlc.TopMenusBySalesParams` (now with `RowLimit pgtype.Int8`) from Task 2.
+- Produces:
+  - `(*DashboardService).TopMenus(ctx context.Context, from, to time.Time) ([]TopMenuItem, error)` — unchanged signature, still capped at 10.
+  - `(*DashboardService).MenuItems(ctx context.Context, from, to time.Time) ([]TopMenuItem, error)` — same signature, unbounded.
 
-Context: `DashboardService` holds `s.q`, the sqlc `*Queries`. `TopMenus` at line 177 is the template — copy its structure exactly, including the `float64(r.Revenue) / 100` satang→THB conversion.
+  Both share the unexported `menuSales` helper. Task 4's handlers call both. `TopMenuItem` already exists at `internal/dashboard/service/dashboard.go:46` as `{Name string \`json:"name"\`; QtySold int64 \`json:"qty_sold"\`; Revenue float64 \`json:"revenue"\`}` and is reused unchanged — that is what keeps the two endpoints' JSON identical.
 
-- [ ] **Step 1: Add the method**
+Context: `DashboardService` holds `s.q`, the sqlc `*Queries`. The current `TopMenus` (line 177) does the query call plus a satang→THB mapping loop. Both of those move into `menuSales`, leaving `TopMenus` and `MenuItems` as one-line wrappers that differ only in the limit they pass. This is the de-duplication the human partner ruled for over copying the method.
 
-Insert into `/home/nate/Dev/mulan/internal/dashboard/service/dashboard.go`, immediately after the closing brace of `TopMenus`:
+`pgtype.Int8{}` (zero value, `Valid: false`) marshals to SQL NULL, which is what makes `MenuItems` unbounded.
+
+- [ ] **Step 1: Replace TopMenus with the shared helper plus two wrappers**
+
+In `/home/nate/Dev/mulan/internal/dashboard/service/dashboard.go`, replace the whole `TopMenus` function with:
 
 ```go
-// MenuItems is TopMenus without the LIMIT: every item sold in the window,
-// still ordered by quantity descending. Backs the manager dashboard's
-// "All items" list, while TopMenus backs the item-mix donut.
-func (s *DashboardService) MenuItems(ctx context.Context, from, to time.Time) ([]TopMenuItem, error) {
-	rows, err := s.q.MenuItemsBySales(ctx, sqlc.MenuItemsBySalesParams{
-		FromAt: pgtype.Timestamptz{Time: from, Valid: true},
-		ToAt:   pgtype.Timestamptz{Time: to, Valid: true},
+// menuSales aggregates paid order items by name over [from, to), newest
+// sales included, ordered by quantity descending. A rowLimit that is not
+// Valid means SQL NULL, which Postgres reads as "no limit".
+func (s *DashboardService) menuSales(ctx context.Context, from, to time.Time, rowLimit pgtype.Int8) ([]TopMenuItem, error) {
+	rows, err := s.q.TopMenusBySales(ctx, sqlc.TopMenusBySalesParams{
+		FromAt:   pgtype.Timestamptz{Time: from, Valid: true},
+		ToAt:     pgtype.Timestamptz{Time: to, Valid: true},
+		RowLimit: rowLimit,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("menu items: %w", err)
+		return nil, fmt.Errorf("menu sales: %w", err)
 	}
 	out := make([]TopMenuItem, len(rows))
 	for i, r := range rows {
@@ -238,25 +245,49 @@ func (s *DashboardService) MenuItems(ctx context.Context, from, to time.Time) ([
 	}
 	return out, nil
 }
+
+// topMenusLimit is how many items the dashboard's item-mix donut shows.
+// More slices than this stops being readable on a phone.
+const topMenusLimit = 10
+
+// TopMenus backs the dashboard's item-mix donut.
+func (s *DashboardService) TopMenus(ctx context.Context, from, to time.Time) ([]TopMenuItem, error) {
+	return s.menuSales(ctx, from, to, pgtype.Int8{Int64: topMenusLimit, Valid: true})
+}
+
+// MenuItems backs the dashboard's "All items" list: every item sold in the
+// window, no cap.
+func (s *DashboardService) MenuItems(ctx context.Context, from, to time.Time) ([]TopMenuItem, error) {
+	return s.menuSales(ctx, from, to, pgtype.Int8{})
+}
 ```
 
 No new imports: `fmt`, `pgtype`, `sqlc`, and `time` are all already imported by this file.
 
-- [ ] **Step 2: Verify it compiles**
+- [ ] **Step 2: Verify the build is restored**
 
 ```bash
 cd /home/nate/Dev/mulan
 go build ./... && go vet ./internal/dashboard/...
 ```
 
-Expected: both exit 0, no output.
+Expected: both exit 0, no output. (Task 2 deliberately left the build broken; this step is what proves it's fixed.)
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Verify no LIMIT literal remains in Go or SQL**
+
+```bash
+cd /home/nate/Dev/mulan
+grep -rn "LIMIT 10" internal/sql/dashboard.query.sql sqlc/dashboard.query.sql.go
+```
+
+Expected: no matches (exit status 1). The cap now lives only in `topMenusLimit`.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 cd /home/nate/Dev/mulan
 git add internal/dashboard/service/dashboard.go
-git commit -m "feat(dashboard): add MenuItems service method"
+git commit -m "feat(dashboard): add MenuItems, sharing one query helper with TopMenus"
 ```
 
 ---
@@ -264,14 +295,16 @@ git commit -m "feat(dashboard): add MenuItems service method"
 ### Task 4: Expose GET /dashboard/menu-items
 
 **Files:**
-- Modify: `/home/nate/Dev/mulan/internal/dashboard/http/handler.go` (add to `Handler.Routes` at line 39-46; add handler method after `TopMenus`, which ends at line 141)
+- Modify: `/home/nate/Dev/mulan/internal/dashboard/http/handler.go` (add to `Handler.Routes` at lines 39-46; replace `TopMenus` at lines 129-141 and add `MenuItems`)
 - Test: `/home/nate/Dev/mulan/internal/dashboard/http/range_test.go` (extend the file created in Task 1)
 
 **Interfaces:**
-- Consumes: `(*DashboardService).MenuItems` from Task 3; `rangeFromQuery` from Task 1.
+- Consumes: `(*DashboardService).TopMenus` and `.MenuItems` from Task 3; `rangeFromQuery` from Task 1.
 - Produces: `GET /api/dashboard/menu-items?from=YYYY-MM-DD&to=YYYY-MM-DD`, responding `{"data": [{"name": string, "qty_sold": number, "revenue": number}]}`. Task 6's frontend client calls this path.
 
-Context: `Handler.Routes(r chi.Router)` at line 39 registers the dashboard's six GET routes. `response.OK(w, r, out)` wraps the payload in the `{data, error}` envelope; `response.Error(w, r, status, msg, err)` produces the error side. `TopMenus` at line 129 is the exact template.
+Context: `Handler.Routes(r chi.Router)` at line 39 registers the dashboard's GET routes. `response.OK(w, r, out)` wraps the payload in the `{data, error}` envelope; `response.Error(w, r, status, msg, err)` produces the error side.
+
+Both endpoints do exactly the same thing — parse the range, call a service method with the signature `func(context.Context, time.Time, time.Time) ([]service.TopMenuItem, error)`, envelope the result. Per the human partner's de-duplication ruling, that shared shape becomes `menuList`, and the two handlers are one-line wrappers differing only in the service method and the error message.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -294,6 +327,18 @@ func TestRoutesRegistersMenuItems(t *testing.T) {
 		t.Fatal("expected GET /dashboard/menu-items to be registered")
 	}
 }
+
+func TestMenuListRejectsBadRange(t *testing.T) {
+	h := NewHandler(nil)
+	// to before from: menuList must 400 out of rangeFromQuery before it
+	// touches the (nil) service, so this exercises the shared error path.
+	req := httptest.NewRequest("GET", "/dashboard/menu-items?from=2026-08-02&to=2026-08-01", nil)
+	w := httptest.NewRecorder()
+	h.MenuItems(w, req)
+	if w.Code != 400 {
+		t.Fatalf("expected 400 for reversed range, got %d", w.Code)
+	}
+}
 ```
 
 Extend that file's import block to:
@@ -308,18 +353,18 @@ import (
 )
 ```
 
-Note: this test only walks the route table, so passing `nil` for the service is safe — the handler is never invoked.
+Note: passing `nil` for the service is safe in both tests — the first only walks the route table, and the second returns at the range check before dereferencing it.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
 cd /home/nate/Dev/mulan
-go test ./internal/dashboard/http/ -run TestRoutesRegistersMenuItems -v
+go test ./internal/dashboard/http/ -run "TestRoutesRegistersMenuItems|TestMenuListRejectsBadRange" -v
 ```
 
-Expected: FAIL with "expected GET /dashboard/menu-items to be registered".
+Expected: both FAIL — the first with "expected GET /dashboard/menu-items to be registered", the second with a compile error (`h.MenuItems` undefined). A compile failure counts as red here.
 
-- [ ] **Step 3: Add the handler and register the route**
+- [ ] **Step 3: Extract menuList and add both wrappers**
 
 In `/home/nate/Dev/mulan/internal/dashboard/http/handler.go`, add to `Handler.Routes` after the `/top-menus` line:
 
@@ -327,44 +372,61 @@ In `/home/nate/Dev/mulan/internal/dashboard/http/handler.go`, add to `Handler.Ro
 	r.Get("/menu-items", h.MenuItems)
 ```
 
-And add this method immediately after `TopMenus`:
+Replace the existing `TopMenus` handler with:
 
 ```go
-// MenuItems returns every item sold in the window (no LIMIT), for the
-// manager dashboard's "All items" list. TopMenus stays capped at 10 for
-// the item-mix donut.
-func (h *Handler) MenuItems(w http.ResponseWriter, r *http.Request) {
+// menuList serves an aggregated menu-sales list: parse the window, call
+// load, envelope the result. Shared by TopMenus and MenuItems, which
+// differ only in whether the list is capped.
+func (h *Handler) menuList(
+	w http.ResponseWriter,
+	r *http.Request,
+	load func(context.Context, time.Time, time.Time) ([]service.TopMenuItem, error),
+	failMsg string,
+) {
 	from, to, err := rangeFromQuery(r)
 	if err != nil {
 		response.Error(w, r, http.StatusBadRequest, err.Error(), err)
 		return
 	}
-	items, err := h.svc.MenuItems(r.Context(), from, to)
+	items, err := load(r.Context(), from, to)
 	if err != nil {
-		response.Error(w, r, http.StatusInternalServerError, "failed to load menu items", err)
+		response.Error(w, r, http.StatusInternalServerError, failMsg, err)
 		return
 	}
 	response.OK(w, r, items)
 }
+
+// TopMenus returns the capped list behind the dashboard's item-mix donut.
+func (h *Handler) TopMenus(w http.ResponseWriter, r *http.Request) {
+	h.menuList(w, r, h.svc.TopMenus, "failed to load top menus")
+}
+
+// MenuItems returns every item sold in the window, behind the dashboard's
+// "All items" list.
+func (h *Handler) MenuItems(w http.ResponseWriter, r *http.Request) {
+	h.menuList(w, r, h.svc.MenuItems, "failed to load menu items")
+}
 ```
+
+Add `"context"` to the file's import block (it is not currently imported). `service` and `time` already are.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
 cd /home/nate/Dev/mulan
-go test ./internal/dashboard/... -v && go build ./...
+go test ./internal/dashboard/... -v && go build ./... && go vet ./internal/dashboard/...
 ```
 
-Expected: all five tests in the package PASS; build exits 0.
+Expected: all six tests in the package PASS; build and vet exit 0.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /home/nate/Dev/mulan
 git add internal/dashboard/http/handler.go internal/dashboard/http/range_test.go
-git commit -m "feat(dashboard): expose GET /dashboard/menu-items"
+git commit -m "feat(dashboard): expose GET /dashboard/menu-items via shared menuList"
 ```
-
 ---
 
 ### Task 5: Add customRange() to the frontend range module
@@ -811,7 +873,7 @@ Write up what actually happened for each check above, quoting the observed numbe
 ## Self-Review
 
 **Spec coverage:**
-- Backend `MenuItemsBySales` query → Task 2 ✓
+- Backend unlimited menu-items query → Task 2 ✓ (delivered as a nullable `row_limit` param on `TopMenusBySales` rather than a second query — see the de-duplication ruling below)
 - Backend `MenuItems` service method → Task 3 ✓
 - Backend `/menu-items` route + handler → Task 4 ✓
 - `maxRangeDays` 92 → 366 → Task 1 ✓
@@ -822,4 +884,6 @@ Write up what actually happened for each check above, quoting the observed numbe
 - Verification steps 1-5 from the spec → Task 8 ✓
 - No proxy `ALLOW` change, no `main.go` change → stated in Global Constraints ✓
 
-**Type consistency:** `TopMenuItem` (Go) and `TopMenu` (TS) are reused, not redefined. `MenuItemsBySalesParams`/`Row` names in Task 3 match what sqlc generates from the `-- name: MenuItemsBySales` directive in Task 2. `FixedPreset`, `MAX_RANGE_DAYS`, `Range`, and `customRange` are defined in Task 5 and consumed under those exact names in Task 7. `load` changes signature from `(p: string)` to `(range: Range)` within a single task (7), so no cross-task mismatch.
+**De-duplication ruling (pre-flight):** the human partner ruled that `MenuItems` must NOT be a copy of `TopMenus`. Tasks 2-4 therefore share code at every layer: one SQL query with a nullable `row_limit`, one `menuSales` service helper, one `menuList` handler helper. The two endpoints stay separate at the route level, as the spec requires, but no logic block is duplicated.
+
+**Type consistency:** `TopMenuItem` (Go) and `TopMenu` (TS) are reused, not redefined. `TopMenusBySalesParams` gains exactly one field (`RowLimit pgtype.Int8`) in Task 2 and is constructed with that field in Task 3. `menuSales` and `menuList` are defined and consumed within Tasks 3 and 4 respectively. `FixedPreset`, `MAX_RANGE_DAYS`, `Range`, and `customRange` are defined in Task 5 and consumed under those exact names in Task 7. `load` changes signature from `(p: string)` to `(range: Range)` within a single task (7), so no cross-task mismatch.
