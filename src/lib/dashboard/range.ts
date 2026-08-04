@@ -9,7 +9,8 @@ export const MAX_RANGE_DAYS = 366;
 
 const PRESET_DAYS: Record<Preset, number> = { today: 0, '7d': 6, '30d': 29, '90d': 89 };
 
-function isoDay(d: Date): string {
+/** Shop-local calendar day as ISO yyyy-mm-dd (never UTC — toISOString would shift). */
+export function isoDay(d: Date): string {
 	const y = d.getFullYear();
 	const m = String(d.getMonth() + 1).padStart(2, '0');
 	const day = String(d.getDate()).padStart(2, '0');

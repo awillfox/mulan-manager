@@ -3,34 +3,22 @@
 	import Card from '$lib/components/ios/Card.svelte';
 	import Spinner from '$lib/components/ios/Spinner.svelte';
 	import EmptyState from '$lib/components/ios/EmptyState.svelte';
-	import SegmentedControl from '$lib/components/ios/SegmentedControl.svelte';
 	import Waterfall from '$lib/components/charts/Waterfall.svelte';
 	import Heatmap from '$lib/components/charts/Heatmap.svelte';
 	import SalesChart from '$lib/components/charts/SalesChart.svelte';
 	import Donut from '$lib/components/charts/Donut.svelte';
 	import { baht } from '$lib/format';
-	import {
-		presetRange,
-		customRange,
-		MAX_RANGE_DAYS,
-		type Preset,
-		type Range
-	} from '$lib/dashboard/range';
+	import { isoDay, customRange, MAX_RANGE_DAYS, type Range } from '$lib/dashboard/range';
 	import { deltaPct, deltaLabel } from '$lib/dashboard/delta';
 	import { loadDashboard, type DashboardData } from '$lib/dashboard/api';
 	import { onMount } from 'svelte';
 	import { env } from '$env/dynamic/public';
 
-	const presets = [
-		{ label: 'Today', value: 'today' },
-		{ label: '7D', value: '7d' },
-		{ label: '30D', value: '30d' },
-		{ label: '90D', value: '90d' }
-	];
+	// The date pickers are the only range control; both open on today.
+	const today = isoDay(new Date());
 
-	let preset = $state('7d');
-	let customFrom = $state('');
-	let customTo = $state('');
+	let customFrom = $state(today);
+	let customTo = $state(today);
 	let rangeError = $state('');
 	let data = $state<DashboardData | null>(null);
 	let loading = $state(true);
@@ -48,33 +36,28 @@
 		}
 	}
 
-	// Resolve the active window: a complete custom range wins over the preset.
-	// An invalid one explains itself and leaves the last good data on screen
+	// An invalid range explains itself and leaves the last good data on screen
 	// rather than blanking the dashboard mid-edit.
 	function reload() {
-		if (customFrom && customTo) {
-			const range = customRange(customFrom, customTo);
-			if (!range) {
-				rangeError =
-					customFrom > customTo
+		const range = customRange(customFrom, customTo);
+		if (!range) {
+			rangeError =
+				!customFrom || !customTo
+					? 'Pick a start and end date.'
+					: customFrom > customTo
 						? 'End date must be on or after the start date.'
 						: `Range can't exceed ${MAX_RANGE_DAYS} days.`;
-				loading = false;
-				errored = false;
-				return;
-			}
-			rangeError = '';
-			load(range);
+			loading = false;
+			errored = false;
 			return;
 		}
 		rangeError = '';
-		load(presetRange(preset as Preset, new Date()));
+		load(range);
 	}
 
-	// Refetch whenever any filter changes. Read each dep explicitly so the effect
-	// tracks them. customFrom/customTo only take effect once BOTH are set.
+	// Refetch whenever either date changes. Read each dep explicitly so the
+	// effect tracks them.
 	$effect(() => {
-		void preset;
 		void customFrom;
 		void customTo;
 		reload();
@@ -97,7 +80,6 @@
 <NavBar title="Dashboard" />
 
 <div class="space-y-4 px-4 pt-2 pb-6">
-	<SegmentedControl options={presets} bind:value={preset} />
 	<div class="flex items-center gap-2 text-sm">
 		<input
 			type="date"
@@ -110,13 +92,13 @@
 			bind:value={customTo}
 			class="rounded-lg border border-[var(--ios-separator)] bg-[var(--ios-card)] px-2 py-1 text-[var(--ios-label)]"
 		/>
-		{#if customFrom || customTo}
+		{#if customFrom !== today || customTo !== today}
 			<button
 				class="text-[var(--ios-blue)]"
 				onclick={() => {
-					customFrom = '';
-					customTo = '';
-				}}>Clear</button
+					customFrom = today;
+					customTo = today;
+				}}>Today</button
 			>
 		{/if}
 	</div>
