@@ -4,8 +4,13 @@ export interface Range {
 	to: string; // inclusive ISO yyyy-mm-dd
 }
 
-/** Mirrors maxRangeDays in ../mulan/internal/dashboard/http/handler.go. */
-export const MAX_RANGE_DAYS = 366;
+/**
+ * Mirrors maxRangeDays in ../mulan/internal/dashboard/http/handler.go and
+ * ../mulan/internal/report/http/handler.go — both 92. Both compare an
+ * exclusive end (`to + 24h`) against `from`, so 92 inclusive days is the
+ * widest window either accepts; 93 gets a 400.
+ */
+export const MAX_RANGE_DAYS = 92;
 
 const PRESET_DAYS: Record<Preset, number> = { today: 0, '7d': 6, '30d': 29, '90d': 89 };
 

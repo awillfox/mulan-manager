@@ -40,15 +40,15 @@ describe('customRange', () => {
 	it('rejects a reversed range', () => {
 		expect(customRange('2026-06-14', '2026-06-01')).toBeNull();
 	});
-	it('accepts exactly 366 inclusive days', () => {
-		// 2025-08-02..2026-08-02 inclusive = 366 days.
-		expect(customRange('2025-08-02', '2026-08-02')).toEqual({
-			from: '2025-08-02',
-			to: '2026-08-02'
+	it('accepts exactly 92 inclusive days', () => {
+		// 2026-05-01..2026-07-31 inclusive = 92 days — the backend's maxRangeDays.
+		expect(customRange('2026-05-01', '2026-07-31')).toEqual({
+			from: '2026-05-01',
+			to: '2026-07-31'
 		});
 	});
-	it('rejects 367 inclusive days', () => {
-		expect(customRange('2025-08-02', '2026-08-03')).toBeNull();
+	it('rejects 93 inclusive days', () => {
+		expect(customRange('2026-05-01', '2026-08-01')).toBeNull();
 	});
 	it('rejects an unparseable date', () => {
 		expect(customRange('2026-01-32', '2026-08-01')).toBeNull();
