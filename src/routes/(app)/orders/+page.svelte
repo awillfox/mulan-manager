@@ -6,19 +6,13 @@
 	import SegmentedControl from '$lib/components/ios/SegmentedControl.svelte';
 	import { showToast } from '$lib/components/ios/toast.svelte';
 	import { baht } from '$lib/format';
-	import { presetRange, type Preset } from '$lib/dashboard/range';
+	import { presetRange, customRange, MAX_RANGE_DAYS } from '$lib/dashboard/range';
 	import { listOrders, listAllOrders, type OrderRow } from '$lib/api/reports';
 	import { exportOrdersXlsx } from '$lib/export/ordersXlsx';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	const PAGE = 100;
 
-	const presets = [
-		{ label: 'Today', value: 'today' },
-		{ label: '7D', value: '7d' },
-		{ label: '30D', value: '30d' },
-		{ label: '90D', value: '90d' }
-	];
 	const statuses = [
 		{ label: 'Paid', value: 'paid' },
 		{ label: 'All', value: '' },
@@ -26,10 +20,15 @@
 		{ label: 'Held', value: 'held' }
 	];
 
-	let preset = $state('7d');
+	// The date pickers are the only range control; they open on the last 7 days,
+	// which is also what the backend defaults to when from/to are omitted
+	// (../mulan/internal/report/http/handler.go).
+	const initial = presetRange('7d', new Date());
+
 	let status = $state('paid');
-	let customFrom = $state('');
-	let customTo = $state('');
+	let customFrom = $state(initial.from);
+	let customTo = $state(initial.to);
+	let rangeError = $state('');
 
 	let orders = $state<OrderRow[]>([]);
 	let total = $state(0);
@@ -40,12 +39,23 @@
 	// clicking another order does not collapse the others.
 	const expanded = new SvelteSet<string>();
 
-	function range(): { from: string; to: string } {
-		if (customFrom && customTo) return { from: customFrom, to: customTo };
-		return presetRange(preset as Preset, new Date());
+	// null while the picked window is unusable; the message explains why.
+	const range = $derived(customRange(customFrom, customTo));
+
+	function rangeMessage(): string {
+		if (!customFrom || !customTo) return 'Pick a start and end date.';
+		if (customFrom > customTo) return 'End date must be on or after the start date.';
+		return `Range can't exceed ${MAX_RANGE_DAYS} days.`;
 	}
 
 	async function load(reset = true) {
+		if (!range) {
+			rangeError = rangeMessage();
+			loading = false;
+			loadingMore = false;
+			return;
+		}
+		rangeError = '';
 		if (reset) {
 			loading = true;
 			errored = false;
@@ -54,7 +64,7 @@
 			loadingMore = true;
 		}
 		try {
-			const { from, to } = range();
+			const { from, to } = range;
 			const offset = reset ? 0 : orders.length;
 			const page = await listOrders({ from, to, status: status || undefined, limit: PAGE, offset });
 			orders = reset ? page.orders : [...orders, ...page.orders];
@@ -84,9 +94,13 @@
 	let exporting = $state(false);
 
 	async function exportXlsx() {
+		if (!range) {
+			showToast(rangeMessage(), 'error');
+			return;
+		}
 		exporting = true;
 		try {
-			const { from, to } = range();
+			const { from, to } = range;
 			const all = await listAllOrders({ from, to, status: status || undefined });
 			const name = `orders-${from}-to-${to}${status ? '-' + status : ''}.xlsx`;
 			await exportOrdersXlsx(all, name);
@@ -100,13 +114,11 @@
 	const dt = (iso: string) =>
 		new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
 
-	// Refetch whenever any filter changes. Read each dep explicitly so the effect
-	// tracks them. customFrom/customTo only take effect once BOTH are set.
+	// Refetch whenever a filter changes. Read each dep explicitly so the effect
+	// tracks them.
 	$effect(() => {
-		void preset;
 		void status;
-		void customFrom;
-		void customTo;
+		void range;
 		load(true);
 	});
 </script>
@@ -115,7 +127,6 @@
 
 <div class="space-y-4 px-4 pt-2 pb-6">
 	<SegmentedControl options={statuses} bind:value={status} />
-	<SegmentedControl options={presets} bind:value={preset} />
 	<div class="flex items-center gap-2 text-sm">
 		<input
 			type="date"
@@ -128,16 +139,19 @@
 			bind:value={customTo}
 			class="rounded-lg border border-[var(--ios-separator)] bg-[var(--ios-card)] px-2 py-1 text-[var(--ios-label)]"
 		/>
-		{#if customFrom || customTo}
+		{#if customFrom !== initial.from || customTo !== initial.to}
 			<button
 				class="text-[var(--ios-blue)]"
 				onclick={() => {
-					customFrom = '';
-					customTo = '';
-				}}>Clear</button
+					customFrom = initial.from;
+					customTo = initial.to;
+				}}>Last 7D</button
 			>
 		{/if}
 	</div>
+	{#if rangeError}
+		<p class="px-1 text-sm text-[var(--ios-red)]">{rangeError}</p>
+	{/if}
 
 	{#if loading}
 		<Spinner />
