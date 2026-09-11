@@ -45,13 +45,17 @@ const handler: RequestHandler = async ({ params, request, url, cookies }) => {
 
 	const method = request.method;
 	const hasBody = method !== 'GET' && method !== 'HEAD';
-	const backendPath = path.startsWith(IMG_PREFIX)
-		? `${path}${url.search}`
-		: `api/${path}${url.search}`;
+	const isImageFetch = path.startsWith(IMG_PREFIX);
+	const backendPath = isImageFetch ? `${path}${url.search}` : `api/${path}${url.search}`;
 
 	const res = await callBackend(backendPath, {
 		method,
-		token,
+		// ServeImage is deliberately unauthenticated (see IMG_PREFIX above) —
+		// don't forward the owner's session bearer to it. Requiring a valid
+		// session to reach it at all (the check above) is enough; sending the
+		// live token to an endpoint that was never meant to see one is a
+		// credential crossing a boundary drawn on purpose, for no benefit.
+		token: isImageFetch ? undefined : token,
 		// Read as ArrayBuffer (binary-safe). request.text() would UTF-8-decode and
 		// corrupt non-text bodies — e.g. multipart logo uploads. The original
 		// content-type (incl. the multipart boundary) is forwarded below.

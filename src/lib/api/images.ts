@@ -7,6 +7,10 @@ export interface DisplayImage {
 	width: number;
 	height: number;
 	bytes: number;
+	// Raw, backend-relative "/display/img/<file>" path — built server-side
+	// with the same helper the playlist uses. Use this directly (through
+	// proxiedImageUrl for an <img src>); don't rebuild it from object_key.
+	url: string;
 }
 
 // The row created by POST /api/display/promos — the display_images playlist
@@ -46,20 +50,10 @@ async function json<T>(res: Response): Promise<T> {
 	return body.data as T;
 }
 
-// The raw, backend-relative URL for an object key — mirrors imageURL() in
-// mulan/internal/display/service/playlist.go exactly, so this is always
-// equal (by plain string comparison) to a Slide's `url` for the same
-// image. Kept separate from proxiedImageUrl below: this one is for
-// *identity* (matching a freshly-uploaded image against a playlist entry),
-// not for fetching — using it directly as an <img src> would 404, since
-// "/display/img/*" is not a path this app's own origin serves.
-export const imageUrl = (objectKey: string): string =>
-	'/display/img/' + objectKey.replace(/^img\//, '');
-
-// GET /api/display/playlist returns slide URLs in that same raw
-// "/display/img/<file>" form — the backend's own top-level route
-// (main.go mounts ServeImage outside /api entirely, so the
-// unauthenticated kiosk display can fetch bytes without a token). This
+// Every `url` this API returns (from the playlist, from /promos, and from
+// an upload) is in the same raw "/display/img/<file>" form — the backend's
+// own top-level route (main.go mounts ServeImage outside /api entirely, so
+// the unauthenticated kiosk display can fetch bytes without a token). This
 // app's proxy only owns /api/*, so that URL is not directly fetchable from
 // the manager's origin; for an <img src>, rewrite it to
 // "/api/display/img/<file>" first. The proxy

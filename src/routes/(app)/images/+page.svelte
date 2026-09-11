@@ -21,6 +21,7 @@
 	let menuSlides = $state<Slide[]>([]);
 	let loading = $state(true);
 	let uploading = $state(false);
+	let deletingId = $state<number | null>(null);
 	let fileInput = $state<HTMLInputElement | null>(null);
 
 	async function refresh() {
@@ -66,7 +67,15 @@
 	}
 
 	async function remove(row: PromoRow) {
-		if (!confirm('Remove this promo from the display?')) return;
+		// Unlike a discount or menu item (plain DB rows a delete just
+		// removes), this permanently deletes the image itself from storage
+		// once nothing else references it — the copy says so plainly rather
+		// than reading like ordinary delisting.
+		if (
+			!confirm('Delete this photo? It is permanently removed from storage and cannot be recovered.')
+		)
+			return;
+		deletingId = row.id;
 		try {
 			// A 404 here just means the promo is already gone (deleted
 			// elsewhere, or this list was stale) — a normal outcome, not an
@@ -76,6 +85,8 @@
 			showToast(result.alreadyGone ? 'Already removed' : 'Promo removed');
 		} catch (e) {
 			showToast((e as Error).message, 'error');
+		} finally {
+			deletingId = null;
 		}
 	}
 
@@ -122,8 +133,11 @@
 								<button
 									type="button"
 									onclick={() => remove(row)}
-									class="px-2 py-3 text-[var(--ios-red)]">Remove</button
+									disabled={deletingId === row.id}
+									class="px-2 py-3 text-[var(--ios-red)] disabled:opacity-40"
 								>
+									{deletingId === row.id ? 'Removing…' : 'Remove'}
+								</button>
 							{/snippet}
 						</ListRow>
 					{/each}

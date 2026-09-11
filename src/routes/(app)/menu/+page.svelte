@@ -25,7 +25,7 @@
 		type Menu
 	} from '$lib/api/menus';
 	import { serializeMenuGroups, type GroupEntry, type OptionRow } from '$lib/api/menuGroups';
-	import { uploadImage, imageUrl, proxiedImageUrl } from '$lib/api/images';
+	import { uploadImage, proxiedImageUrl } from '$lib/api/images';
 
 	let menus = $state<Menu[]>([]);
 	let cats = $state<Category[]>([]);
@@ -165,7 +165,7 @@
 			const img = await uploadImage(file);
 			await setMenuImage(editingId, img.id);
 			fImageId = img.id;
-			fPhotoPreview = { url: proxiedImageUrl(imageUrl(img.object_key)) };
+			fPhotoPreview = { url: proxiedImageUrl(img.url) };
 			await refresh();
 			showToast('Photo attached');
 		} catch (e) {
