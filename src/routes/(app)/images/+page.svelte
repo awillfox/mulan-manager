@@ -8,37 +8,34 @@
 	import { showToast } from '$lib/components/ios/toast.svelte';
 	import {
 		listPlaylist,
+		listPromos,
 		uploadImage,
 		addPromo,
 		deletePromo,
 		proxiedImageUrl,
-		imageUrl,
-		type Slide
+		type Slide,
+		type PromoRow
 	} from '$lib/api/images';
 
-	let slides = $state<Slide[]>([]);
+	let promos = $state<PromoRow[]>([]);
+	let menuSlides = $state<Slide[]>([]);
 	let loading = $state(true);
 	let uploading = $state(false);
 	let fileInput = $state<HTMLInputElement | null>(null);
 
-	// GET /api/display/playlist deliberately omits the display_images row id
-	// (see domain.Slide in mulan/internal/display/domain/slide.go — Kind,
-	// URL, Width, Height, Name, Price only) and the backend has no
-	// GET /api/display/promos listing endpoint (a ListAllPromoSlides sqlc
-	// query exists but is not wired to any route), so a promo already in the
-	// playlist cannot be resolved back to the id DELETE /promos/{id} needs.
-	// The only moment that id is ever learned is the 201 response from
-	// addPromo(), right when this tab creates it. Track those here, keyed by
-	// the slide's own URL (content-addressed — a matching URL is the same
-	// image) so a Delete control appears only where it will actually work. A
-	// promo added in an earlier session, or from another device, still shows
-	// up in the list — just without a delete control.
-	let knownPromoIds = $state<Record<string, number>>({});
-
 	async function refresh() {
 		loading = true;
 		try {
-			slides = await listPlaylist();
+			// GET /api/display/promos is the management view: every live promo,
+			// with its id — the source of truth for this list and for what
+			// deletePromo() can target. GET /api/display/playlist is the kiosk's
+			// resolved view (only the subset actually interleaved into one
+			// playback, and with no ids at all); it's used here only for the
+			// read-only "which menu items have a photo" list, since that's the
+			// one place that information surfaces.
+			const [promoRows, slides] = await Promise.all([listPromos(), listPlaylist()]);
+			promos = promoRows;
+			menuSlides = slides.filter((s) => s.kind === 'menu');
 		} catch (e) {
 			showToast((e as Error).message, 'error');
 		} finally {
@@ -58,8 +55,7 @@
 		uploading = true;
 		try {
 			const img = await uploadImage(file);
-			const promo = await addPromo(img.id);
-			knownPromoIds[imageUrl(img.object_key)] = promo.id;
+			await addPromo(img.id);
 			await refresh();
 			showToast('Promo added');
 		} catch (e) {
@@ -69,17 +65,15 @@
 		}
 	}
 
-	async function remove(slide: Slide) {
-		const id = knownPromoIds[slide.url];
-		if (id == null) return;
+	async function remove(row: PromoRow) {
 		if (!confirm('Remove this promo from the display?')) return;
 		try {
-			await deletePromo(id);
-			const rest = { ...knownPromoIds };
-			delete rest[slide.url];
-			knownPromoIds = rest;
+			// A 404 here just means the promo is already gone (deleted
+			// elsewhere, or this list was stale) — a normal outcome, not an
+			// error the owner needs to interpret.
+			const result = await deletePromo(row.id);
 			await refresh();
-			showToast('Promo removed');
+			showToast(result.alreadyGone ? 'Already removed' : 'Promo removed');
 		} catch (e) {
 			showToast((e as Error).message, 'error');
 		}
@@ -98,65 +92,74 @@
 	{/snippet}
 </NavBar>
 
-<div class="space-y-3 px-4 pt-2 pb-6">
-	<p class="px-1 text-sm text-[var(--ios-label-secondary)]">
-		The playlist the customer display plays: menu photos (attached from an item's editor under Menu)
-		interleaved with promo images added here.
-	</p>
-
+<div class="space-y-5 px-4 pt-2 pb-6">
 	{#if loading}
 		<Spinner />
-	{:else if slides.length === 0}
-		<EmptyState
-			title="Nothing to show yet"
-			subtitle="Add a promo image, or attach photos to menu items under Menu."
-		>
-			{#snippet action()}
-				<Button onclick={pick} disabled={uploading}>Add Promo</Button>
-			{/snippet}
-		</EmptyState>
 	{:else}
-		<Card padded={false}>
-			{#each slides as slide, i (slide.url + i)}
-				<ListRow divider={i < slides.length - 1}>
-					<div class="flex items-center gap-3">
-						<div class="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--ios-fill)]">
-							<img src={proxiedImageUrl(slide.url)} alt="" class="h-full w-full object-cover" />
-						</div>
-						<div class="min-w-0">
-							<div class="flex items-center gap-2">
+		<div>
+			<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">Promos</p>
+			{#if promos.length === 0}
+				<EmptyState title="No promos yet" subtitle="Add an image to rotate into the display.">
+					{#snippet action()}
+						<Button onclick={pick} disabled={uploading}>Add Promo</Button>
+					{/snippet}
+				</EmptyState>
+			{:else}
+				<Card padded={false}>
+					{#each promos as row, i (row.id)}
+						<ListRow divider={i < promos.length - 1}>
+							<div class="flex items-center gap-3">
+								<div class="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--ios-fill)]">
+									<img src={proxiedImageUrl(row.url)} alt="" class="h-full w-full object-cover" />
+								</div>
 								<span
-									class="shrink-0 rounded-full px-2 py-0.5 text-xs {slide.kind === 'promo'
-										? 'bg-[var(--ios-blue)]/15 text-[var(--ios-blue)]'
-										: 'bg-[var(--ios-fill)] text-[var(--ios-label-secondary)]'}"
+									class="rounded-full bg-[var(--ios-blue)]/15 px-2 py-0.5 text-xs text-[var(--ios-blue)]"
 								>
-									{slide.kind === 'promo' ? 'Promo' : 'Menu'}
+									Promo
 								</span>
-								{#if slide.name}
-									<span class="truncate font-medium text-[var(--ios-label)]">{slide.name}</span>
-								{/if}
 							</div>
-							{#if slide.price != null}
-								<p class="text-sm text-[var(--ios-label-secondary)]">฿{slide.price.toFixed(2)}</p>
-							{/if}
-						</div>
-					</div>
-					{#snippet trailing()}
-						{#if slide.kind === 'promo'}
-							{#if knownPromoIds[slide.url] != null}
+							{#snippet trailing()}
 								<button
 									type="button"
-									onclick={() => remove(slide)}
+									onclick={() => remove(row)}
 									class="px-2 py-3 text-[var(--ios-red)]">Remove</button
 								>
-							{:else}
-								<span class="text-xs text-[var(--ios-label-tertiary)]">Added elsewhere</span>
-							{/if}
-						{/if}
-					{/snippet}
-				</ListRow>
-			{/each}
-		</Card>
+							{/snippet}
+						</ListRow>
+					{/each}
+				</Card>
+			{/if}
+		</div>
+
+		<div>
+			<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">Menu Photos</p>
+			{#if menuSlides.length === 0}
+				<EmptyState
+					title="No menu photos yet"
+					subtitle="Attach photos to menu items under Menu — a photo-less item never appears on the display."
+				/>
+			{:else}
+				<Card padded={false}>
+					{#each menuSlides as slide, i (slide.url + i)}
+						<ListRow divider={i < menuSlides.length - 1}>
+							<div class="flex items-center gap-3">
+								<div class="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--ios-fill)]">
+									<img src={proxiedImageUrl(slide.url)} alt="" class="h-full w-full object-cover" />
+								</div>
+								<div class="min-w-0">
+									<span class="truncate font-medium text-[var(--ios-label)]">{slide.name}</span>
+									{#if slide.price != null}
+										<p class="text-sm text-[var(--ios-label-secondary)]">
+											฿{slide.price.toFixed(2)}
+										</p>
+									{/if}
+								</div>
+							</div>
+						</ListRow>
+					{/each}
+				</Card>
+			{/if}
+		</div>
 	{/if}
 
 	<input

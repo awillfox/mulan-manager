@@ -19,6 +19,18 @@ export interface PromoSlide {
 	active: boolean;
 }
 
+// A row from GET /api/display/promos — the management view of the promo
+// pool (every non-deleted promo, with its id), as opposed to
+// GET /api/display/playlist's kiosk view (only the resolved subset that
+// gets interleaved into a single playback, and with no ids at all). `url`
+// is already the ready-to-use root-absolute "/display/img/<file>" path —
+// use it as-is; do not rebuild it from object_key (there isn't one here).
+export interface PromoRow extends PromoSlide {
+	url: string;
+	width: number;
+	height: number;
+}
+
 export interface Slide {
 	kind: 'menu' | 'promo';
 	url: string;
@@ -59,6 +71,11 @@ export const proxiedImageUrl = (url: string): string =>
 
 export const listPlaylist = () => fetch('/api/display/playlist').then((r) => json<Slide[]>(r));
 
+// The management view: every live promo, with its id — source of truth for
+// the images page's promo list and for what DELETE /promos/{id} can target.
+// Soft-deleted promos are excluded server-side.
+export const listPromos = () => fetch('/api/display/promos').then((r) => json<PromoRow[]>(r));
+
 export async function uploadImage(file: File): Promise<DisplayImage> {
 	const blob = await downscaleToJpeg(file);
 	const form = new FormData();
@@ -83,6 +100,17 @@ export const addPromo = (imageId: number, sortOrder?: number) =>
 		)
 	}).then((r) => json<PromoSlide>(r));
 
-// 404s if the promo id doesn't exist (or was already deleted).
-export const deletePromo = (id: number) =>
-	fetch(`/api/display/promos/${id}`, { method: 'DELETE' }).then((r) => json<unknown>(r));
+// DELETE /api/display/promos/{id}. A 404 here doesn't mean the caller did
+// anything wrong — it means the promo is already gone (deleted elsewhere,
+// or the list the caller is looking at is stale). That's a normal outcome
+// to surface with a toast and a refresh, not an error, so this resolves
+// `alreadyGone: true` instead of throwing; any other non-2xx still throws.
+export async function deletePromo(id: number): Promise<{ alreadyGone: boolean }> {
+	const res = await fetch(`/api/display/promos/${id}`, { method: 'DELETE' });
+	if (res.status === 404) return { alreadyGone: true };
+	if (!res.ok) {
+		const body = await res.json().catch(() => ({}));
+		throw new Error(body?.error || `HTTP ${res.status}`);
+	}
+	return { alreadyGone: false };
+}
