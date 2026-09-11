@@ -24,6 +24,10 @@ export interface Menu {
 	active: boolean;
 	favourite: boolean;
 	sort_order: number;
+	// The backend omits this field entirely (json:",omitempty") when no
+	// photo is attached, rather than sending null — so "no photo" is
+	// `undefined`, not `null`.
+	image_id?: number;
 	option_groups: MenuGroup[];
 	base_options: BaseOption[];
 }
@@ -85,3 +89,19 @@ export const setMenuBaseOptions = (id: number, base_options: BaseOption[]) =>
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ base_options })
 	}).then(ok);
+
+// Attaches (imageId a number) or clears (imageId null) a menu item's
+// customer-display photo. 204 on success; the backend answers 400 if the
+// image id doesn't exist and 404 if the menu doesn't — surface those
+// messages (via `j`'s body.error parsing) rather than a bare "HTTP 400".
+export const setMenuImage = (id: number, imageId: number | null) =>
+	fetch(`/api/menus/${id}/image`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ image_id: imageId })
+	}).then(async (r) => {
+		if (!r.ok) {
+			const b = await r.json().catch(() => ({}));
+			throw new Error(b?.error || `HTTP ${r.status}`);
+		}
+	});

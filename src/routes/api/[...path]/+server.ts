@@ -18,8 +18,19 @@ const ALLOW = [
 	'reports',
 	'cashiers',
 	'cash-drawer',
-	'settings'
+	'settings',
+	'display'
 ];
+
+// display/img/<file> is the one allowed path that is NOT a /api/* route on
+// the backend: main.go registers ServeImage at the top level
+// (`r.Get("/display/img/{filename}", displayHandler.ServeImage)`, outside
+// `r.Route("/api", ...)`) so the unauthenticated kiosk display can fetch
+// image bytes without going through /api at all. Every other allowed path
+// (display/playlist, display/images, display/promos, ...) is a genuine
+// /api/* route. So this one prefix must be forwarded WITHOUT the leading
+// `api/` that every other path gets — see backendPath below.
+const IMG_PREFIX = 'display/img/';
 
 function allowed(path: string): boolean {
 	return ALLOW.some((p) => path === p || path.startsWith(p + '/') || path.startsWith(p + '?'));
@@ -34,7 +45,9 @@ const handler: RequestHandler = async ({ params, request, url, cookies }) => {
 
 	const method = request.method;
 	const hasBody = method !== 'GET' && method !== 'HEAD';
-	const backendPath = `api/${path}${url.search}`;
+	const backendPath = path.startsWith(IMG_PREFIX)
+		? `${path}${url.search}`
+		: `api/${path}${url.search}`;
 
 	const res = await callBackend(backendPath, {
 		method,

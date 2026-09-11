@@ -21,6 +21,9 @@
 	// string-bound inputs for numeric fields
 	let vat = $state('');
 	let ppb = $state('');
+	let slideSeconds = $state('');
+	let promoEvery = $state('');
+	let transitionMs = $state('');
 
 	async function load() {
 		loading = true;
@@ -28,6 +31,9 @@
 			s = await getSettings();
 			vat = String(s.vat_percent);
 			ppb = String(s.points_per_baht);
+			slideSeconds = String(s.display_slide_seconds);
+			promoEvery = String(s.display_promo_every);
+			transitionMs = String(s.display_transition_ms);
 		} catch (e) {
 			showToast((e as Error).message, 'error');
 		} finally {
@@ -38,12 +44,29 @@
 		if (!s) return;
 		const vatN = parseFloat(vat),
 			ppbN = parseFloat(ppb);
+		const slideSecondsN = parseInt(slideSeconds, 10);
+		const promoEveryN = parseInt(promoEvery, 10);
+		const transitionMsN = parseInt(transitionMs, 10);
 		if (!s.shop_name.trim()) return showToast('Shop name is required', 'error');
-		if (Number.isNaN(vatN) || vatN < 0 || vatN > 100) return showToast('VAT must be 0–100', 'error');
+		if (Number.isNaN(vatN) || vatN < 0 || vatN > 100)
+			return showToast('VAT must be 0–100', 'error');
 		if (Number.isNaN(ppbN) || ppbN < 0) return showToast('Points/baht must be ≥ 0', 'error');
+		if (Number.isNaN(slideSecondsN) || slideSecondsN <= 0)
+			return showToast('Slide duration must be > 0', 'error');
+		if (Number.isNaN(promoEveryN) || promoEveryN <= 0)
+			return showToast('Promo frequency must be > 0', 'error');
+		if (Number.isNaN(transitionMsN) || transitionMsN < 0)
+			return showToast('Transition must be ≥ 0', 'error');
 		saving = true;
 		try {
-			await updateSettings({ ...s, vat_percent: vatN, points_per_baht: ppbN });
+			await updateSettings({
+				...s,
+				vat_percent: vatN,
+				points_per_baht: ppbN,
+				display_slide_seconds: slideSecondsN,
+				display_promo_every: promoEveryN,
+				display_transition_ms: transitionMsN
+			});
 			showToast('Saved');
 		} catch (e) {
 			const m = (e as Error).message;
@@ -89,6 +112,31 @@
 			<TextField label="VAT %" bind:value={vat} inputmode="decimal" placeholder="7" />
 			<TextField label="Points per ฿" bind:value={ppb} inputmode="decimal" placeholder="1" />
 			<TextField label="Receipt footer" bind:value={s.receipt_footer} placeholder="Thank you!" />
+		</div>
+		<div>
+			<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">
+				Customer Display
+			</p>
+			<div class="space-y-4">
+				<TextField
+					label="Slide duration (seconds)"
+					bind:value={slideSeconds}
+					inputmode="numeric"
+					placeholder="8"
+				/>
+				<TextField
+					label="Promo every N slides"
+					bind:value={promoEvery}
+					inputmode="numeric"
+					placeholder="4"
+				/>
+				<TextField
+					label="Transition (ms)"
+					bind:value={transitionMs}
+					inputmode="numeric"
+					placeholder="600"
+				/>
+			</div>
 		</div>
 		<Button onclick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
 	{/if}

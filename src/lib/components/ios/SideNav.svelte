@@ -16,6 +16,7 @@
 			items: [
 				{ href: '/option-groups', label: 'Option Groups', icon: '⌥' },
 				{ href: '/discounts', label: 'Discounts', icon: '％' },
+				{ href: '/images', label: 'Display Images', icon: '🖼️' },
 				{ href: '/menu-generator', label: 'Menu Generator', icon: '🖨️' }
 			]
 		},

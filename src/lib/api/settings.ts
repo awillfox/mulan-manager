@@ -3,6 +3,11 @@ export interface Settings {
 	vat_percent: number;
 	receipt_footer: string;
 	points_per_baht: number;
+	// Customer display: how long each slide shows (seconds), how many menu
+	// slides play between promos, and the crossfade duration (ms).
+	display_slide_seconds: number;
+	display_promo_every: number;
+	display_transition_ms: number;
 }
 async function j<T>(res: Response): Promise<T> {
 	const b = await res.json().catch(() => ({}));

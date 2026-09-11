@@ -21,9 +21,11 @@
 		deleteMenu,
 		setMenuBaseOptions,
 		setMenuGroups,
+		setMenuImage,
 		type Menu
 	} from '$lib/api/menus';
 	import { serializeMenuGroups, type GroupEntry, type OptionRow } from '$lib/api/menuGroups';
+	import { uploadImage, imageUrl, proxiedImageUrl } from '$lib/api/images';
 
 	let menus = $state<Menu[]>([]);
 	let cats = $state<Category[]>([]);
@@ -44,6 +46,18 @@
 	let baseRows = $state<{ name: string; price: string }[]>([]);
 	let groupEntries = $state<GroupEntry[]>([]);
 	let saving = $state(false);
+
+	// Display photo (customer-facing menu slide). `fImageId` is the
+	// authoritative "has a photo" fact, straight off the menu row. A
+	// preview thumbnail (`fPhotoPreview`) is only ever known right after
+	// this editor uploads one — GET /api/menus returns image_id but not the
+	// image's object_key, and the backend has no endpoint to look up an
+	// image by id, so a photo attached in an earlier session can be
+	// reported as present but can't be rendered here without re-uploading.
+	let fImageId = $state<number | null>(null);
+	let fPhotoPreview = $state<{ url: string } | null>(null);
+	let photoInput = $state<HTMLInputElement | null>(null);
+	let photoBusy = $state(false);
 
 	const baht = (n: number) => '฿' + n.toFixed(2);
 	// When a menu has base options the list price is ignored — show up to the
@@ -69,7 +83,11 @@
 	async function refresh() {
 		loading = true;
 		try {
-			[menus, cats, presets] = await Promise.all([listMenus(), listCategories(), listOptionGroups()]);
+			[menus, cats, presets] = await Promise.all([
+				listMenus(),
+				listCategories(),
+				listOptionGroups()
+			]);
 		} catch (e) {
 			showToast((e as Error).message, 'error');
 		} finally {
@@ -87,6 +105,8 @@
 		fFav = false;
 		baseRows = [];
 		groupEntries = [];
+		fImageId = null;
+		fPhotoPreview = null;
 		sheetOpen = true;
 	}
 	function openEdit(m: Menu) {
@@ -97,12 +117,23 @@
 		fCat = m.category_id ?? null;
 		fActive = m.active ?? true;
 		fFav = m.favourite ?? false;
+		fImageId = m.image_id ?? null;
+		fPhotoPreview = null;
 		baseRows = m.base_options.map((b) => ({ name: b.name, price: String(b.price) }));
 		groupEntries = m.option_groups.map((g): GroupEntry => {
-			const options: OptionRow[] = g.options.map((o) => ({ name: o.name, delta: String(o.price_delta) }));
+			const options: OptionRow[] = g.options.map((o) => ({
+				name: o.name,
+				delta: String(o.price_delta)
+			}));
 			return g.isolated
 				? { kind: 'isolated', name: g.name, selection_mode: g.selection_mode, options }
-				: { kind: 'shared', sourceId: g.id, name: g.name, selection_mode: g.selection_mode, options };
+				: {
+						kind: 'shared',
+						sourceId: g.id,
+						name: g.name,
+						selection_mode: g.selection_mode,
+						options
+					};
 		});
 		sheetOpen = true;
 	}
@@ -113,6 +144,49 @@
 			await refresh();
 		} catch (e) {
 			showToast((e as Error).message, 'error');
+		}
+	}
+
+	// Photo attach/remove. Unlike base options and option groups, this is a
+	// live call the moment a file is picked — not something batched into
+	// save() — because it needs a real menu id (upload → PUT .../image), and
+	// an unsaved new item has none yet. So the control stays disabled until
+	// the item has been saved once (editingId != null); see the template.
+	function choosePhoto() {
+		photoInput?.click();
+	}
+	async function onPhotoChange(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = ''; // allow re-selecting the same file
+		if (!file || editingId == null) return;
+		photoBusy = true;
+		try {
+			const img = await uploadImage(file);
+			await setMenuImage(editingId, img.id);
+			fImageId = img.id;
+			fPhotoPreview = { url: proxiedImageUrl(imageUrl(img.object_key)) };
+			await refresh();
+			showToast('Photo attached');
+		} catch (e) {
+			showToast((e as Error).message, 'error');
+		} finally {
+			photoBusy = false;
+		}
+	}
+	async function removePhoto() {
+		if (editingId == null || fImageId == null) return;
+		photoBusy = true;
+		try {
+			await setMenuImage(editingId, null);
+			fImageId = null;
+			fPhotoPreview = null;
+			await refresh();
+			showToast('Photo removed');
+		} catch (e) {
+			showToast((e as Error).message, 'error');
+		} finally {
+			photoBusy = false;
 		}
 	}
 
@@ -261,12 +335,20 @@
 	{:else}
 		{#each sections as section (section.cid)}
 			<div>
-				<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">{section.name}</p>
+				<p class="mb-2 px-1 text-sm font-medium text-[var(--ios-label-secondary)]">
+					{section.name}
+				</p>
 				<Card padded={false}>
 					{#each section.items as m, i (m.id)}
 						<ListRow divider={i < section.items.length - 1} onclick={() => openEdit(m)}>
 							<span class="font-medium text-[var(--ios-label)]">
-								{#if m.favourite}<span class="text-[var(--ios-yellow,#ffcc00)]">★</span>{/if}{m.name}
+								{#if m.favourite}<span class="text-[var(--ios-yellow,#ffcc00)]">★</span
+									>{/if}{m.name}
+								{#if m.image_id != null}
+									<span class="text-xs text-[var(--ios-label-tertiary)]" title="Has a display photo"
+										>📷</span
+									>
+								{/if}
 							</span>
 							{#snippet trailing()}
 								<div class="flex items-center gap-3">
@@ -326,6 +408,49 @@
 		</div>
 		<Card><Toggle label="Active" bind:checked={fActive} /></Card>
 		<Card><Toggle label="★ Favourite (pinned under All at POS)" bind:checked={fFav} /></Card>
+
+		<!-- Display photo -->
+		<div>
+			<span class="mb-1 block text-sm text-[var(--ios-label-secondary)]"
+				>Photo (for the customer display)</span
+			>
+			{#if editingId == null}
+				<p class="text-xs text-[var(--ios-label-tertiary)]">
+					Save the item first, then add a photo.
+				</p>
+			{:else}
+				<div class="flex items-center gap-4">
+					<div
+						class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--ios-fill)]"
+					>
+						{#if fPhotoPreview}
+							<img src={fPhotoPreview.url} alt="" class="h-full w-full object-cover" />
+						{:else if fImageId != null}
+							<span class="text-2xl" title="Photo attached — preview unavailable until replaced"
+								>📷</span
+							>
+						{:else}
+							<span class="text-xs text-[var(--ios-label-tertiary)]">None</span>
+						{/if}
+					</div>
+					<div class="flex gap-2">
+						<Button variant="tinted" onclick={choosePhoto} disabled={photoBusy}>
+							{fImageId != null ? 'Replace' : 'Upload'}
+						</Button>
+						{#if fImageId != null}
+							<Button variant="plain" onclick={removePhoto} disabled={photoBusy}>Remove</Button>
+						{/if}
+					</div>
+					<input
+						bind:this={photoInput}
+						type="file"
+						accept="image/png,image/jpeg"
+						class="hidden"
+						onchange={onPhotoChange}
+					/>
+				</div>
+			{/if}
+		</div>
 
 		<!-- Base options -->
 		<div>
