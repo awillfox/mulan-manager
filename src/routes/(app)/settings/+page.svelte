@@ -124,12 +124,17 @@
 					inputmode="numeric"
 					placeholder="8"
 				/>
-				<TextField
-					label="Promo every N slides"
-					bind:value={promoEvery}
-					inputmode="numeric"
-					placeholder="4"
-				/>
+				<div>
+					<TextField
+						label="Promo every N menu photos"
+						bind:value={promoEvery}
+						inputmode="numeric"
+						placeholder="4"
+					/>
+					<p class="mt-1 text-xs text-[var(--ios-label-tertiary)]">
+						One promo slot per N menu photos; every promo is shown at least once.
+					</p>
+				</div>
 				<TextField
 					label="Transition (ms)"
 					bind:value={transitionMs}
