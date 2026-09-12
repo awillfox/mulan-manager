@@ -7,6 +7,8 @@ services:
     envVars:
       - key: PORT
         value: 3000
+      - key: BODY_SIZE_LIMIT
+        value: 11M # > backend's 10 MiB image cap; adapter-node defaults to 512K
       - key: BACKEND_URL
         sync: false # set to http://<backend-magicdns-host>:8080 in the dashboard
       - key: TS_HTTP_PROXY

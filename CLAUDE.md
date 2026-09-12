@@ -35,7 +35,9 @@ httpOnly cookie `mm_session` holds the opaque bearer (set by the `/login` form a
 
 ## Deploy
 
-render Docker web service `mulan-manager`, auto-deploys from GitHub `awillfox/mulan-manager` `main`. Env vars (render **Environment**, not Secret Files): `BACKEND_URL`, `TS_HTTP_PROXY=http://127.0.0.1:1055`, `TS_AUTHKEY` (Tailscale **auth key** — use **ephemeral + reusable** so deploys don't pile up stale nodes), `TS_HOSTNAME`, `PORT=3000`. The container runs `tailscaled` (userspace) + `node build`; entrypoint requires a valid `TS_AUTHKEY` (a deploy can't go live without joining the tailnet). A `RENDER_TOKEN` (in `~/.bashrc`, below the non-interactive guard) hits the render API for deploys/logs/env-vars.
+render Docker web service `mulan-manager`, auto-deploys from GitHub `awillfox/mulan-manager` `main`. Env vars (render **Environment**, not Secret Files): `BACKEND_URL`, `TS_HTTP_PROXY=http://127.0.0.1:1055`, `TS_AUTHKEY` (Tailscale **auth key** — use **ephemeral + reusable** so deploys don't pile up stale nodes), `TS_HOSTNAME`, `PORT=3000`, `BODY_SIZE_LIMIT=11M` (adapter-node's default is **512K**, under the backend's 10 MiB image cap — leave it unset and image uploads 500 at the proxy before reaching a route). The container runs `tailscaled` (userspace) + `node build`; entrypoint requires a valid `TS_AUTHKEY` (a deploy can't go live without joining the tailnet). A `RENDER_TOKEN` (in `~/.bashrc`, below the non-interactive guard) hits the render API for deploys/logs/env-vars.
+
+Also deployed **on-prem** at `manager.thgalleycafe.com`: systemd unit `mulan-manager.service` on `coffee@192.168.1.100`, running `node /home/coffee/mulan-manager/build/index.js` with `EnvironmentFile=/home/coffee/mulan-manager/.env` (not in this repo), backend at `http://localhost:8085`, exposed by a remote-managed cloudflared tunnel (ingress lives in the Cloudflare dashboard, not a local config). This box runs `node` directly, so the `Dockerfile` `ENV` defaults above do **not** apply — every env var, `BODY_SIZE_LIMIT` included, must be set in that `.env` and the unit restarted to pick it up.
 
 ---
 
