@@ -121,7 +121,11 @@
 	// any other server-side reason, simply won't match and falls back to the
 	// "preview unavailable" glyph — same as before this fix.
 	function findPhotoPreview(name: string): { url: string } | null {
-		const match = menuSlides.find((s) => s.name === name);
+		// The playlist now carries EVERY active menu item, including those
+		// with no photo (url ''), so a name match alone would claim a
+		// thumbnail for every item and render a broken <img>. Require a url
+		// too — that is what "has a photo" means now.
+		const match = menuSlides.find((s) => s.name === name && s.url !== '');
 		return match ? { url: proxiedImageUrl(match.url) } : null;
 	}
 
