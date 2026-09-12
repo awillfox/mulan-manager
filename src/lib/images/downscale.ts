@@ -5,7 +5,11 @@ const QUALITY = 0.85;
  * Downscale to at most MAX_EDGE on the long side and re-encode as JPEG.
  * The browser has already decoded the file, so this is nearly free — and it
  * keeps a Go image-resizing pipeline out of the backend. A 12MP phone photo
- * becomes a few hundred KB before it crosses Tailscale.
+ * becomes a fraction of its original size before it crosses Tailscale — but
+ * at 1920px/q0.85 that is routinely 700-900 KB, NOT "a few hundred KB". Any
+ * hop in front of this must size its body limit for ~1 MB: assuming smaller
+ * is what left adapter-node's 512K BODY_SIZE_LIMIT default in place and 500'd
+ * ordinary uploads at the proxy (see Dockerfile).
  *
  * This is a bandwidth optimization only — the backend independently
  * validates every upload (JPEG/PNG only, 10 MB cap, decodes the bytes
