@@ -25,11 +25,15 @@
 		type Menu
 	} from '$lib/api/menus';
 	import { serializeMenuGroups, type GroupEntry, type OptionRow } from '$lib/api/menuGroups';
-	import { uploadImage, proxiedImageUrl } from '$lib/api/images';
+	import { uploadImage, proxiedImageUrl, listPlaylist, type Slide } from '$lib/api/images';
 
 	let menus = $state<Menu[]>([]);
 	let cats = $state<Category[]>([]);
 	let presets = $state<OptionGroup[]>([]);
+	// Read-only lookup for photo previews (see fImageId/fPhotoPreview below)
+	// — the "menu" kind slides from GET /api/display/playlist, same source
+	// the Images page uses for its own "which items have a photo" list.
+	let menuSlides = $state<Slide[]>([]);
 	let loading = $state(true);
 	let catSheet = $state(false);
 	let pickerOpen = $state(false);
@@ -48,12 +52,14 @@
 	let saving = $state(false);
 
 	// Display photo (customer-facing menu slide). `fImageId` is the
-	// authoritative "has a photo" fact, straight off the menu row. A
-	// preview thumbnail (`fPhotoPreview`) is only ever known right after
-	// this editor uploads one — GET /api/menus returns image_id but not the
-	// image's object_key, and the backend has no endpoint to look up an
-	// image by id, so a photo attached in an earlier session can be
-	// reported as present but can't be rendered here without re-uploading.
+	// authoritative "has a photo" fact, straight off the menu row.
+	// `fPhotoPreview` is populated two ways: right after this editor
+	// uploads one (see onPhotoChange), or by matching this item's name
+	// against the playlist (see findPhotoPreview) when opening an item
+	// that already has a photo from an earlier session — GET /api/menus
+	// returns image_id but not the image's object_key, and the backend has
+	// no endpoint to look up an image by id, so this is a client-side
+	// workaround rather than a real id-based lookup.
 	let fImageId = $state<number | null>(null);
 	let fPhotoPreview = $state<{ url: string } | null>(null);
 	let photoInput = $state<HTMLInputElement | null>(null);
@@ -83,16 +89,40 @@
 	async function refresh() {
 		loading = true;
 		try {
-			[menus, cats, presets] = await Promise.all([
+			[menus, cats, presets, menuSlides] = await Promise.all([
 				listMenus(),
 				listCategories(),
-				listOptionGroups()
+				listOptionGroups(),
+				// Isolated with its own .catch: the playlist only feeds photo
+				// *previews* (see findPhotoPreview), so a failure here should
+				// degrade to the existing "preview unavailable" glyph, not
+				// throw and blank the whole menu editor via the outer catch.
+				listPlaylist()
+					.then((slides) => slides.filter((s) => s.kind === 'menu'))
+					.catch(() => [])
 			]);
 		} catch (e) {
 			showToast((e as Error).message, 'error');
 		} finally {
 			loading = false;
 		}
+	}
+
+	// Matches this item's name against the playlist's "menu" kind entries to
+	// find a thumbnail — the same technique the Images page uses for its
+	// read-only "which items have a photo" list. This is a NAME match, not
+	// an id match, because GET /api/menus has no object_key and there is no
+	// image-by-id endpoint (see the comment above fImageId): fixing that
+	// properly means joining menus -> images and threading object_key
+	// through toMenuResponse on GET /api/menus, which is on the live POS's
+	// hot path — not worth the risk for an admin-UI convenience. The
+	// consequence: two menu items sharing a name can show each other's
+	// thumbnail here. An inactive item, or one dropped from the playlist for
+	// any other server-side reason, simply won't match and falls back to the
+	// "preview unavailable" glyph — same as before this fix.
+	function findPhotoPreview(name: string): { url: string } | null {
+		const match = menuSlides.find((s) => s.name === name);
+		return match ? { url: proxiedImageUrl(match.url) } : null;
 	}
 
 	function openCreate() {
@@ -118,7 +148,7 @@
 		fActive = m.active ?? true;
 		fFav = m.favourite ?? false;
 		fImageId = m.image_id ?? null;
-		fPhotoPreview = null;
+		fPhotoPreview = fImageId != null ? findPhotoPreview(m.name) : null;
 		baseRows = m.base_options.map((b) => ({ name: b.name, price: String(b.price) }));
 		groupEntries = m.option_groups.map((g): GroupEntry => {
 			const options: OptionRow[] = g.options.map((o) => ({
