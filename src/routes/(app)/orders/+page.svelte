@@ -185,7 +185,7 @@
 		</div>
 		<Card padded={false}>
 			<div class="overflow-x-auto">
-				<table class="w-full min-w-[800px] text-sm">
+				<table class="w-full min-w-[880px] text-sm">
 					<thead>
 						<tr
 							class="border-b border-[var(--ios-separator)] text-left text-xs text-[var(--ios-label-secondary)]"
@@ -199,6 +199,7 @@
 							<th class="px-3 py-2 text-right font-medium">Discount</th>
 							<th class="px-3 py-2 text-right font-medium">Subsidy</th>
 							<th class="px-3 py-2 text-right font-medium">Net</th>
+							<th class="px-3 py-2 text-center font-medium">Actions</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -230,10 +231,23 @@
 								<td class="px-3 py-2 text-right font-mono font-semibold text-[var(--ios-label)]"
 									>{baht(o.net)}</td
 								>
+								<td class="px-3 py-2 text-center">
+									{#if o.status === 'paid'}
+										<button
+											class="rounded-lg bg-[var(--ios-red)] px-3 py-1 text-xs font-semibold text-white"
+											onclick={(e) => {
+												// Keep the row from toggling its detail open/closed.
+												e.stopPropagation();
+												voidTarget = o;
+												voidOpen = true;
+											}}>Void…</button
+										>
+									{/if}
+								</td>
 							</tr>
 							{#if expanded.has(o.code)}
 								<tr class="border-b border-[var(--ios-separator)] bg-[var(--ios-fill)]">
-									<td colspan="9" class="px-4 py-3">
+									<td colspan="10" class="px-4 py-3">
 										<div class="space-y-2 text-sm">
 											{#if o.member_name || o.member_phone}
 												<p class="text-[var(--ios-label-secondary)]">
@@ -279,16 +293,6 @@
 													{#each v.items as vi, vi_i (vi_i)}<p class="pl-3">{vi.qty}× {vi.name}</p>{/each}
 												</div>
 											{/each}
-											{#if o.status === 'paid'}
-												<button
-													class="rounded-lg bg-[var(--ios-red)] px-3 py-1.5 text-sm font-semibold text-white"
-													onclick={(e) => {
-														e.stopPropagation();
-														voidTarget = o;
-														voidOpen = true;
-													}}>Void…</button
-												>
-											{/if}
 										</div>
 									</td>
 								</tr>
