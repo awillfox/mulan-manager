@@ -31,7 +31,7 @@
 	let busy = $state(false);
 	let previewLoading = $state(false);
 
-	const remaining = (li: { qty: number; voided_qty: number }) => li.qty - li.voided_qty;
+	const remaining = (li: { qty: number; voided_qty: number }) => li.qty - (li.voided_qty ?? 0);
 
 	// Reset the form each time the sheet opens on an order. Reads only open
 	// and order, so loading the reasons below can't re-run it and wipe input.

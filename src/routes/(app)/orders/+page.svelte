@@ -245,8 +245,8 @@
 												<div>
 													<div class="flex justify-between">
 														<span class="text-[var(--ios-label)]">
-															{li.qty - li.voided_qty}× {li.name}{li.base_option_name ? ` (${li.base_option_name})` : ''}
-															{#if li.voided_qty > 0}<span class="text-[var(--ios-red)] line-through"> voided ×{li.voided_qty}</span>{/if}
+															{li.qty - (li.voided_qty ?? 0)}× {li.name}{li.base_option_name ? ` (${li.base_option_name})` : ''}
+															{#if (li.voided_qty ?? 0) > 0}<span class="text-[var(--ios-red)] line-through"> voided ×{li.voided_qty ?? 0}</span>{/if}
 														</span>
 														<span class="font-mono text-[var(--ios-label-secondary)]"
 															>{baht(li.price)}</span
@@ -269,7 +269,7 @@
 													<span class="font-mono">{baht(d.amount)}</span>
 												</div>
 											{/each}
-										{#each o.voids as v, v_i (v_i)}
+										{#each o.voids ?? [] as v, v_i (v_i)}
 												<div class="rounded-lg border border-[var(--ios-separator)] p-2 text-[var(--ios-label-secondary)]">
 													<div class="flex justify-between">
 														<span class="text-[var(--ios-red)]">Void ({v.kind}) · {v.reason_label}{v.reason_text ? ` — ${v.reason_text}` : ''}</span>
