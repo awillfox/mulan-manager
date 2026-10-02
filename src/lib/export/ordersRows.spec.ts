@@ -17,7 +17,11 @@ const sample: OrderRow = {
 	subsidy: 0,
 	net: 70,
 	line_items: [],
-	discounts: []
+	discounts: [],
+	payment_method: '',
+	amount_paid: null,
+	voided_at: null,
+	voids: []
 };
 
 describe('ordersToRows', () => {

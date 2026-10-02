@@ -3,9 +3,11 @@ export interface OptionLine {
 	price_delta: number;
 }
 export interface OrderLine {
+	id: number;
 	name: string;
 	base_option_name: string;
 	qty: number;
+	voided_qty: number;
 	price: number;
 	options: OptionLine[];
 }
@@ -13,7 +15,28 @@ export interface OrderDiscount {
 	name: string;
 	discount_type: string;
 	amount: number;
+	voided_amount: number;
 	is_subsidy: boolean;
+}
+export interface OrderVoidItem {
+	order_item_id: number;
+	name: string;
+	qty: number;
+	gross_amount: number;
+}
+export interface OrderVoid {
+	kind: 'item' | 'order';
+	reason_code: string;
+	reason_label: string;
+	reason_text: string;
+	actor_name: string;
+	actor_type: string;
+	refund_amount: number;
+	refund_method: string;
+	refund_breakdown: Record<string, number> | null;
+	points_reversed: number;
+	created_at: string;
+	items: OrderVoidItem[];
 }
 export interface OrderRow {
 	code: string;
@@ -31,6 +54,10 @@ export interface OrderRow {
 	net: number;
 	line_items: OrderLine[];
 	discounts: OrderDiscount[];
+	payment_method: string;
+	amount_paid: number | null;
+	voided_at: string | null;
+	voids: OrderVoid[];
 }
 export interface OrdersPage {
 	orders: OrderRow[];

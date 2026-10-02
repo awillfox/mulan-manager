@@ -1,26 +1,7 @@
 import { error, type RequestHandler } from '@sveltejs/kit';
 import { callBackend } from '$lib/server/backend';
 import { getSessionToken } from '$lib/server/session';
-
-// Allowlisted backend path prefixes the browser may reach via this proxy.
-// NOT an open tunnel onto the tailnet — only these manager surfaces.
-const ALLOW = [
-	'discounts',
-	'dashboard',
-	'auth/me',
-	'auth/logout',
-	'auth/change-password',
-	'menus',
-	'menu-categories',
-	'option-groups',
-	'options',
-	'members',
-	'reports',
-	'cashiers',
-	'cash-drawer',
-	'settings',
-	'display'
-];
+import { allowed } from './allow';
 
 // display/img/<file> is the one allowed path that is NOT a /api/* route on
 // the backend: main.go registers ServeImage at the top level
@@ -31,10 +12,6 @@ const ALLOW = [
 // /api/* route. So this one prefix must be forwarded WITHOUT the leading
 // `api/` that every other path gets — see backendPath below.
 const IMG_PREFIX = 'display/img/';
-
-function allowed(path: string): boolean {
-	return ALLOW.some((p) => path === p || path.startsWith(p + '/') || path.startsWith(p + '?'));
-}
 
 const handler: RequestHandler = async ({ params, request, url, cookies }) => {
 	const path = params.path ?? '';

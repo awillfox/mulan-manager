@@ -36,7 +36,11 @@ function mk(code: string): OrderRow {
 		subsidy: 0,
 		net: 0,
 		line_items: [],
-		discounts: []
+		discounts: [],
+		payment_method: '',
+		amount_paid: null,
+		voided_at: null,
+		voids: []
 	};
 }
 
