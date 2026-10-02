@@ -29,6 +29,7 @@
 	let preview = $state<VoidRes | null>(null);
 	let previewError = $state('');
 	let busy = $state(false);
+	let previewLoading = $state(false);
 
 	const remaining = (li: { qty: number; voided_qty: number }) => li.qty - li.voided_qty;
 
@@ -56,34 +57,57 @@
 	});
 
 	const anySelected = $derived(whole || Object.values(qtys).some((n) => n > 0));
-	const canSubmit = $derived(anySelected && reasonValid(reason, text) && !busy && !previewError);
+	const canSubmit = $derived(
+		anySelected &&
+			reasonValid(reason, text) &&
+			!busy &&
+			!previewError &&
+			preview !== null &&
+			!previewLoading
+	);
 
 	// Live refund preview, debounced. The preview runs the real void in a
 	// rolled-back transaction, so the amount shown is the amount voided.
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	// Request sequence token: a late response (or rejection) from an older
+	// selection/order must not overwrite the current selection's preview.
+	let reqSeq = 0;
 	$effect(() => {
 		// Reason is not needed for a preview; leaving it out means typing the
 		// reason text doesn't fire a request per keystroke.
 		const req = buildVoidReq(whole, qtys, '', '');
 		if (!open || !order || !anySelected) {
+			reqSeq++; // drop any in-flight result
+			previewLoading = false;
 			preview = null;
 			previewError = '';
 			return;
 		}
 		clearTimeout(timer);
 		const code = order.code;
+		const seq = ++reqSeq;
+		previewLoading = true;
+		preview = null;
+		previewError = '';
 		timer = setTimeout(() => {
 			previewVoid(code, req)
 				.then((r) => {
+					if (seq !== reqSeq) return;
 					preview = r;
 					previewError = '';
+					previewLoading = false;
 				})
 				.catch((e) => {
+					if (seq !== reqSeq) return;
 					preview = null;
 					previewError = (e as Error).message;
+					previewLoading = false;
 				});
 		}, 300);
-		return () => clearTimeout(timer);
+		return () => {
+			clearTimeout(timer);
+			reqSeq++;
+		};
 	});
 
 	function step(id: number, delta: number, max: number) {
@@ -167,6 +191,8 @@
 
 			{#if previewError}
 				<p class="text-[var(--ios-red)]">{previewError}</p>
+			{:else if previewLoading}
+				<p class="text-[var(--ios-label-secondary)]">Calculating…</p>
 			{:else if preview}
 				<div class="space-y-1 rounded-xl bg-[var(--ios-fill)] p-3">
 					<div class="flex justify-between font-semibold">
