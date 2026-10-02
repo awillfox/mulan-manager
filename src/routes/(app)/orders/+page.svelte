@@ -9,15 +9,20 @@
 	import { presetRange, customRange, MAX_RANGE_DAYS } from '$lib/dashboard/range';
 	import { listOrders, listAllOrders, type OrderRow } from '$lib/api/reports';
 	import { exportOrdersXlsx } from '$lib/export/ordersXlsx';
+	import VoidSheet from '$lib/components/VoidSheet.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	const PAGE = 100;
+
+	let voidOpen = $state(false);
+	let voidTarget = $state<OrderRow | null>(null);
 
 	const statuses = [
 		{ label: 'Paid', value: 'paid' },
 		{ label: 'All', value: '' },
 		{ label: 'Open', value: 'open' },
-		{ label: 'Held', value: 'held' }
+		{ label: 'Held', value: 'held' },
+		{ label: 'Voided', value: 'voided' }
 	];
 
 	// The date pickers are the only range control; they open on the last 7 days,
@@ -209,7 +214,9 @@
 									>{o.paid_at ? dt(o.paid_at) : '—'}</td
 								>
 								<td class="px-3 py-2 font-mono text-[var(--ios-label)]">{o.code}</td>
-								<td class="px-3 py-2 text-[var(--ios-label-secondary)]">{o.status}</td>
+								<td class="px-3 py-2 text-[var(--ios-label-secondary)]">
+									{#if o.status === 'voided'}<span class="rounded bg-[var(--ios-red)] px-1.5 py-0.5 text-xs text-white">voided</span>{:else}{o.status}{/if}
+								</td>
 								<td class="px-3 py-2 text-right text-[var(--ios-label)]">{o.qty}</td>
 								<td class="px-3 py-2 text-right font-mono text-[var(--ios-label)]"
 									>{baht(o.gross)}</td
@@ -238,9 +245,8 @@
 												<div>
 													<div class="flex justify-between">
 														<span class="text-[var(--ios-label)]">
-															{li.qty}× {li.name}{li.base_option_name
-																? ` (${li.base_option_name})`
-																: ''}
+															{li.qty - li.voided_qty}× {li.name}{li.base_option_name ? ` (${li.base_option_name})` : ''}
+															{#if li.voided_qty > 0}<span class="text-[var(--ios-red)] line-through"> voided ×{li.voided_qty}</span>{/if}
 														</span>
 														<span class="font-mono text-[var(--ios-label-secondary)]"
 															>{baht(li.price)}</span
@@ -263,6 +269,26 @@
 													<span class="font-mono">{baht(d.amount)}</span>
 												</div>
 											{/each}
+										{#each o.voids as v, v_i (v_i)}
+												<div class="rounded-lg border border-[var(--ios-separator)] p-2 text-[var(--ios-label-secondary)]">
+													<div class="flex justify-between">
+														<span class="text-[var(--ios-red)]">Void ({v.kind}) · {v.reason_label}{v.reason_text ? ` — ${v.reason_text}` : ''}</span>
+														<span class="font-mono">−{baht(v.refund_amount)}</span>
+													</div>
+													<p>{dt(v.created_at)} · {v.actor_name} ({v.actor_type}){v.points_reversed ? ` · −${v.points_reversed} pts` : ''}</p>
+													{#each v.items as vi, vi_i (vi_i)}<p class="pl-3">{vi.qty}× {vi.name}</p>{/each}
+												</div>
+											{/each}
+											{#if o.status === 'paid'}
+												<button
+													class="rounded-lg bg-[var(--ios-red)] px-3 py-1.5 text-sm font-semibold text-white"
+													onclick={(e) => {
+														e.stopPropagation();
+														voidTarget = o;
+														voidOpen = true;
+													}}>Void…</button
+												>
+											{/if}
 										</div>
 									</td>
 								</tr>
@@ -283,3 +309,5 @@
 		{/if}
 	{/if}
 </div>
+
+<VoidSheet bind:open={voidOpen} order={voidTarget} onDone={() => load(true)} />
