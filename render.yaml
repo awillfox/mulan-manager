@@ -18,4 +18,6 @@ services:
       - key: TS_HOSTNAME
         value: mulan-manager
       - key: PUBLIC_BOOKYMAN_URL
-        value: https://bookyman-remote.onrender.com/login # dashboard keep-alive ping target
+        value: https://bookyman.thgalleycafe.com/login # music player, on-prem via cloudflared
+      - key: PUBLIC_BOOKYMAN_KEY
+        sync: false # bookyman-remote ADMIN_PASSWORD; reaches the browser, set in the dashboard

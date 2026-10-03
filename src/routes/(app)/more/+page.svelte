@@ -6,6 +6,8 @@
 	import TextField from '$lib/components/ios/TextField.svelte';
 	import { showToast } from '$lib/components/ios/toast.svelte';
 	import { changePassword } from '$lib/api/account';
+	import { env } from '$env/dynamic/public';
+	import { bookymanLoginUrl } from '$lib/bookyman';
 
 	const groups = [
 		{
@@ -25,7 +27,7 @@
 				{ href: '/drawer', label: 'Cash Drawer', icon: '💵' },
 				{ href: '/settings', label: 'Settings', icon: '⚙' },
 				{
-					href: 'https://bookyman-remote.onrender.com/login?key=changeme',
+					href: bookymanLoginUrl(env.PUBLIC_BOOKYMAN_URL, env.PUBLIC_BOOKYMAN_KEY),
 					label: 'Music Player',
 					icon: '🎵',
 					external: true
